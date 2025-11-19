@@ -1,0 +1,159 @@
+# GitHub Actions workflow to publish DaxLib packages
+#
+# Version: 1.0.0
+#
+# HOW TO USE:
+# 1. Go to "Actions" in your GitHub repository
+# 2. Click on "publish-package" in the workflow list
+# 3. Click the "Run workflow" button and confirm
+# 4. Wait for the workflow to complete
+# 5. Create a Pull Request to the official DaxLib repository (link provided in the summary after completion)
+#
+# WHAT IT DOES:
+# - Reads your package from the current repository
+# - Copies it to your daxlib fork
+# - Creates (or updates) a branch with your changes
+# - Provides you with a link to open a Pull Request to the official DaxLib repository
+#
+# REQUIREMENTS:
+# - A fork of the daxlib repository under your account
+# - A Personal Access Token (PAT) saved as DAXLIBFORK_PAT in repository secrets
+
+name: publish-package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Name of your fork of the DAX Lib repository. 
+  # Update `daxlib` if your fork has a different name.
+  DAXLIBFORK_NAME: ${{ github.repository_owner }}/daxlib
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the current repository
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          path: source-repo
+
+      # Checkout the daxlib fork repository
+      - name: Checkout upstream
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DAXLIBFORK_NAME }}
+          path: fork-repo
+          token: ${{ secrets.DAXLIBFORK_PAT }}
+
+      # Configure Git
+      - name: Git config
+        working-directory: fork-repo
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+      # Read the package version from the manifest
+      - name: Read package manifest
+        id: package
+        working-directory: source-repo
+        run: |
+          PACKAGE_NAME=$(jq -r '.id' src/manifest.daxlib)
+          echo "name=${PACKAGE_NAME}" >> $GITHUB_OUTPUT
+          echo "Package name: ${PACKAGE_NAME}"
+          PACKAGE_VERSION=$(jq -r '.version' src/manifest.daxlib)
+          echo "version=${PACKAGE_VERSION}" >> $GITHUB_OUTPUT
+          echo "Package version: ${PACKAGE_VERSION}"
+          PACKAGE_FOLDER="packages/$(echo "${PACKAGE_NAME}" | cut -c1 | tr '[:upper:]' '[:lower:]')/$(echo "${PACKAGE_NAME}" | tr '[:upper:]' '[:lower:]')/${PACKAGE_VERSION}"
+          echo "folder=${PACKAGE_FOLDER}" >> $GITHUB_OUTPUT
+          echo "Package folder: ${PACKAGE_FOLDER}"
+
+      # Checkout the branch (or create it if it doesn't exist)
+      - name: Checkout branch
+        id: branch
+        working-directory: fork-repo
+        run: |
+          BRANCH_NAME="${{ github.event.repository.name }}/publish-${{ steps.package.outputs.name }}-${{ steps.package.outputs.version }}"
+          echo "name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
+          echo "Branch name: ${BRANCH_NAME}"
+          git fetch origin
+          if git show-ref --verify --quiet "refs/remotes/origin/${BRANCH_NAME}"; then
+            echo "action=Update" >> $GITHUB_OUTPUT
+            git checkout "${BRANCH_NAME}"
+          else
+            echo "action=Add" >> $GITHUB_OUTPUT
+            git checkout -b "${BRANCH_NAME}"
+          fi
+              
+      # Create the package folder if it doesn't exist
+      - name: Create package folder
+        working-directory: fork-repo
+        run: mkdir -p "${{ steps.package.outputs.folder }}"
+
+      # Copy package files to the new folder
+      - name: Copy package files
+        run: cp -rv source-repo/src/* "fork-repo/${{ steps.package.outputs.folder }}/"
+
+      # Replace the package ID and version placeholders in functions.tmdl
+      - name: Replace placeholders
+        working-directory: fork-repo
+        run: |
+          FUNCTIONS_FILE="${{ steps.package.outputs.folder }}/lib/functions.tmdl"
+          sed -i "s/__PLACEHOLDER_PACKAGE_ID__/${{ steps.package.outputs.name }}/g" "${FUNCTIONS_FILE}"
+          sed -i "s/__PLACEHOLDER_PACKAGE_VERSION__/${{ steps.package.outputs.version }}/g" "${FUNCTIONS_FILE}"
+
+      # Commit changes. If there are no changes, this will fail and stop the workflow
+      - name: Git commit changes
+        working-directory: fork-repo
+        run: git add -A && git commit -m "${{ steps.branch.outputs.action }} package \`${{ steps.package.outputs.name }}\` version ${{ steps.package.outputs.version }}"
+
+      # Push to upstream
+      - name: Git push branch
+        working-directory: fork-repo
+        run: git push origin "${{ steps.branch.outputs.name }}"
+
+      # Print summary
+      - name: Print summary
+        run: |          
+          if [ "${{ steps.branch.outputs.action }}" == "Add" ]; then
+            STATUS_ICON="✅"
+            BADGE_COLOR="blue"
+            STAT_INSTRUCTIONS="Your package is ready to be published."
+            NEXT_INSTRUCTIONS="Click the button below to create a Pull Request and submit your package to DAX Lib:"
+          else
+            STATUS_ICON="🔄"
+            BADGE_COLOR="orange"
+            STAT_INSTRUCTIONS="Your changes have been applied and are ready for review."
+            NEXT_INSTRUCTIONS="If a Pull Request already exists, it has already been updated automatically. Otherwise, click the button below to create one."
+          fi
+          
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## ${STATUS_ICON} Package **\`${{ steps.package.outputs.name }}\`** version **\`${{ steps.package.outputs.version }}\`**
+                    
+          ${STAT_INSTRUCTIONS}
+
+          ## 📝 Next Step
+          
+          ${NEXT_INSTRUCTIONS}
+                    
+          [![Create Pull Request](https://img.shields.io/badge/Create_Pull_Request-${BADGE_COLOR}?style=for-the-badge&logo=github)](https://github.com/${{ env.DAXLIBFORK_NAME }}/pull/new/${{ steps.branch.outputs.name }})
+          
+          <details>
+          <summary>📋 Details (click to expand)</summary>
+          
+          | | |
+          |---|---|
+          | Package name | \`${{ steps.package.outputs.name }}\` |
+          | Package version | \`${{ steps.package.outputs.version }}\` |
+          | Package folder | \`${{ steps.package.outputs.folder }}\` |
+          | Source | \`${{ github.repository }}\` @ \`${{ github.ref_name }}\` |
+          | Fork | \`${{ env.DAXLIBFORK_NAME }}\` @ \`${{ steps.branch.outputs.name }}\` |
+          | Create Pull Request URL | \`https://github.com/${{ env.DAXLIBFORK_NAME }}/pull/new/${{ steps.branch.outputs.name }}\` |
+          
+          </details>
+          EOF
