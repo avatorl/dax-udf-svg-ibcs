@@ -1,14 +1,16 @@
-# DAX.UDF.SVG.IBCS
+# IBCS.SVG
 
 DAX User-Defined Function for IBCS-guided SVG visualizations
 
-## Usage
+## Usage Examples
 
-### SVG.IBCS.AbsoluteValues
+### IBCS.SVG.BarChart.AbsoluteValues
 <img width="267" height="150" alt="image" src="https://github.com/user-attachments/assets/75cc6271-17eb-4466-bbeb-91c0641c090d" />
 
+Use in Table, Matrix, Button List visuals
+
 ```
-SVG.IBCS.AbsoluteValues (
+IBCS.SVG.BarChart.AbsoluteValues (
     [Sales AC],
     BLANK (),
     [Sales PY],
@@ -19,11 +21,13 @@ SVG.IBCS.AbsoluteValues (
 )
 ```
 
-### SVG.IBCS.AbsoluteVariance
+### IBCS.SVG.BarChart.AbsoluteVariance
 <img width="378" height="161" alt="image" src="https://github.com/user-attachments/assets/8cf32b8d-bc85-48b2-bab9-93b9b09f99c5" />
 
+Use in Table, Matrix, Button List visuals
+
 ```
-SVG.IBCS.AbsoluteVariance (
+IBCS.SVG.BarChart.AbsoluteVariance (
     [Delta PY],
     FORMAT ( [Delta PY], "#0,," ),
     NOT ( HASONEVALUE ( 'Store'[Name] ) ),
@@ -33,34 +37,33 @@ SVG.IBCS.AbsoluteVariance (
 )
 ```
 
-##
-
-### SVG.IBCS.RelativeVariance
+### IBCS.SVG.BarChart.RelativeVariance
 <img width="290" height="150" alt="image" src="https://github.com/user-attachments/assets/c8a310e4-38d4-406d-8029-4f89bba522ad" />
 
+Use in Table, Matrix, Button List visuals
+
 ```
-SVG.IBCS.RelativeVariance (
+IBCS.SVG.BarChart.RelativeVariance (
     [Delta PY%] * 100,
     FORMAT ( [Delta PY%] * 100, "+#,0;-#,0;#,0" ),
     NOT ( HASONEVALUE ( 'Store'[Name] ) )
 )
 ```
 
-### SVG.IBCS.ColumnChart
+Use in Matrix, Button List visuals
+
+### IBCS.SVG.ColumnChart.WithAbsoluteVariance
 <img width="1125" height="510" alt="image" src="https://github.com/user-attachments/assets/62292dfc-ce21-4daa-9bc1-1fa3ed8afab4" />
 
 ```
-SVG.IBCS.ColumnChart ( [MSales AC], [MSales PY], [MSales PL], [MSales FC], 'Month'[Month] )
+IBCS.SVG.ColumnChart.WithAbsoluteVariance (
+    [MSales AC],
+    [MSales PY],
+    [MSales PL],
+    [MSales FC],
+    'Month'[Month]
+)
 ```
-
-## Documentation
-
-- See the `lib/functions.tmdl` file for the functions included in this library.
-- See the `manifest.daxlib` file for the library metadata and configuration.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues and pull requests.
 
 ## License
 
