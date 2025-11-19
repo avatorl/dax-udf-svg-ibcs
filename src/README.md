@@ -1,6 +1,22 @@
 # IBCS.SVG
 
-DAX User-Defined Function for IBCS-guided SVG visualizations
+DAX User-Defined Functions for IBCS-guided SVG Visualizations
+
+About International Business Communication Standards (IBCS):
+
+https://www.powerofbi.org/international-business-communication-standards/
+
+https://www.powerofbi.org/category/data-visualization/ibcs/
+
+https://www.ibcs.com/
+
+## Usage Instructions
+
+These UDFs generate charts that can be embedded into Power BI core visuals such as table, matrix, button slicer, or new card (depending on the chart type).  
+
+The functions generate SVG code. Change the measure's data category to "Image URL" to ensure Power BI renders SVG images.
+<img width="430" height="73" alt="image" src="https://github.com/user-attachments/assets/15b51c49-7ba1-4a28-b33b-288b1ac536ef" />
+
 
 ## Usage Examples
 
