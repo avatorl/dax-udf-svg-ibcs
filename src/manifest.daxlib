@@ -5,7 +5,7 @@
   "authors": "Andrzej Leszkiewicz (https://powerofbi.org/about/)",
   "description": "DAX Lib package with DAX UDFs for generating IBCS-guided SVG visualizations",
   "tags": "IBCS,SVG",
-  "projectUrl": "https://powerofbi.org/dax-udf-svg-ibcs",
+  "projectUrl": "https://powerofbi.org/ibcs",
   "repositoryUrl": "https://github.com/avatorl/dax-udf-svg-ibcs",
   "readme": "/README.md"
 }
