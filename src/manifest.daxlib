@@ -1,10 +1,10 @@
 {
   "$schema": "https://raw.githubusercontent.com/daxlib/daxlib/refs/heads/main/schemas/manifest/1.0.0/manifest.1.0.0.schema.json",
-  "id": "SVG.IBCS",
+  "id": "IBCS.SVG",
   "version": "0.1.0",
-  "authors": "AVatorL",
+  "authors": "Andrzej Leszkiewicz (https://powerofbi.org/about/)",
   "description": "DAX Lib package with DAX UDFs for generating IBCS-guided SVG visualizations",
-  "tags": "SVG,IBCS",
+  "tags": "IBCS,SVG",
   "projectUrl": "https://powerofbi.org/dax-udf-svg-ibcs",
   "repositoryUrl": "https://github.com/avatorl/dax-udf-svg-ibcs",
   "readme": "/README.md"
