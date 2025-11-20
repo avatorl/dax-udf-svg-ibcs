@@ -26,14 +26,14 @@ The functions generate SVG code. Change the measure's data category to "Image UR
 Use in Table, Matrix, Button List visuals
 
 ```
-PowerofBI.IBCS.BarChart.AbsoluteValues (
-    [Sales AC],
+PowerofBI.IBCS.BarChart.AbsoluteValues(
+    [AC],
     BLANK (),
-    [Sales PY],
+    [PY],
     "grey",
-    FORMAT ( [Sales AC], "#0,," ),
-    NOT ( HASONEVALUE ( 'Store'[Name] ) ),
-    MAXX ( ALLSELECTED ( 'Store' ), MAX ( [Sales AC], [Sales PY] ) )
+    FORMAT ( [AC], "#0" ),
+    NOT ( ISINSCOPE ( 'Sales Person'[Name] ) ),
+    MAXX ( ALLSELECTED ( 'Sales Person' ), MAX ( [AC], [PY] ) )
 )
 ```
 
@@ -44,12 +44,15 @@ Use in Table, Matrix, Button List visuals
 
 ```
 PowerofBI.IBCS.BarChart.AbsoluteVariance (
-    [Delta PY],
-    FORMAT ( [Delta PY], "#0,," ),
-    NOT ( HASONEVALUE ( 'Store'[Name] ) ),
-    MAXX ( ALLSELECTED ( 'Store'[Short Name] ), [Delta PY] ),
-    MINX ( ALLSELECTED ( 'Store'[Short Name] ), [Delta PY] ),
-    MAXX ( ALLSELECTED ( 'Store' ), MAX ( [Sales AC], [Sales PY] ) )
+    [DeltaPY],
+    FORMAT ( [DeltaPY], "#0" ),
+    NOT ( ISINSCOPE ( 'Sales Person'[Name] ) ),
+    MAXX ( ALLSELECTED ( 'Sales Person' ), [DeltaPY] ),
+    MINX ( ALLSELECTED ( 'Sales Person' ), [DeltaPY] ),
+    MAX (
+        MAXX ( ALLSELECTED ( 'Sales Person' ), [AC] ),
+        MAXX ( ALLSELECTED ( 'Sales Person' ), [PY] )
+    )    
 )
 ```
 
