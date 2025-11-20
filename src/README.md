@@ -63,9 +63,9 @@ Use in Table, Matrix, Button List visuals
 
 ```
 PowerofBI.IBCS.BarChart.RelativeVariance (
-    [Delta PY%] * 100,
-    FORMAT ( [Delta PY%] * 100, "+#,0;-#,0;#,0" ),
-    NOT ( HASONEVALUE ( 'Store'[Name] ) )
+    [DeltaPY%],
+    FORMAT ( [DeltaPY%], "+#,0;-#,0;#,0" ),
+    NOT ( ISINSCOPE ( 'Sales Person'[Name] ) )
 )
 ```
 
