@@ -388,3 +388,185 @@ RETURN
     annotation DAXLIB_PackageId = PowerofBI.IBCS
 
     annotation DAXLIB_PackageVersion = 0.1.0
+
+// Creates a column chart that shows actual values, previous period values, plan, forecast and variance bars
+function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
+(
+    _AC: ANYREF,            // Actual Net Sales
+    _PY: ANYREF,            // Previous Year Net Sales
+    _PL: ANYREF,            // Plan (Budget)
+    _FC: ANYREF,            // Forecast Net Sales
+    _PeriodColumn: ANYREF   // Column that holds period (e.g. Month)
+) =>
+//=================================================================================================
+// UDF: Returns SVG image for IBCS-styled column chart (Net Sales by Month)
+//
+//  Chart Type: Vertical Column Chart
+//  Intended Usage: Place this measure in a Matrix visual with the period (e.g. Months) in Columns
+//
+//  Visual Elements per Month:
+//    - Black solid column for Actuals (AC)
+//    - Hatched column for Forecast (FC)
+//    - White outlined column for Plan (PL)
+//    - Grey triangle for Previous Year (PY)
+//    - Red or Green variance bar (AC/FC vs PL)
+//    - Data label (AC or FC values)
+//    - Period label (Month)
+//
+//  Author: Based on styles from Andrzej Leszkiewicz (IBCS® Certified Analyst)
+//  License: MIT Expat
+//=================================================================================================
+
+//===============================================
+// 1. INPUT CALCULATIONS AND CONTEXT
+//===============================================
+
+VAR _ACFC =
+    // Use Actual if available, otherwise Forecast
+    COALESCE(_AC, _FC)
+
+VAR _AllPeriods =
+    // Get all selected months (for max scaling)
+    ALLSELECTED(_PeriodColumn)
+
+VAR _Period =
+    // Current period (Month)
+    SELECTEDVALUE(_PeriodColumn)
+
+VAR _MaxValue =
+    // Find maximum value among AC, FC, PL, PY across all selected periods (for chart scaling)
+    MAXX(
+        ADDCOLUMNS(
+            _AllPeriods,
+            "@Max", MAX(MAX(_PY, _PL), COALESCE(_AC, _FC))
+        ),
+        [@Max]
+    )
+
+VAR _MainScenario =
+    // Define whether we're in Actuals or Forecast mode
+    IF(ISBLANK(_AC), "FC", "AC")
+
+//===============================================
+// 2. FORMATTING CONFIGURATION
+//===============================================
+
+VAR _ColorBlack = "#202020"
+VAR _ColorGrey  = "#969696"
+VAR _ColorRed   = "#ff0000"
+VAR _ColorGreen = "#008e96"
+
+VAR _FontSizePt = 16              // font size in pt
+VAR _Em = _FontSizePt * 4 / 3     // convert font size to px
+
+VAR _SVGHeight = 300              // fixed image height (Format Pane)
+VAR _SVGWidth = 46                // fixed image width (Format Pane)
+VAR _Margin = 10                  // extra padding (matrix cell behavior)
+
+VAR _CategoryWidth = _SVGWidth + _Margin
+VAR _SVG_Header = _Em * 1.5       // space for data label
+VAR _SVG_Footer = _Em * 1.5       // space for period label
+
+VAR _ColumnWidth = _CategoryWidth * 2 / 3
+VAR _ColumnShift = _CategoryWidth * 1 / 9
+
+VAR _SVG_Body = _SVGHeight - _SVG_Header - _SVG_Footer
+
+//===============================================
+// 3. VALUE-TO-PIXEL CONVERSIONS
+//===============================================
+
+VAR _HeightACFC = (_ACFC / _MaxValue) * _SVG_Body
+VAR _YACFC = _SVG_Body - _HeightACFC + _SVG_Header
+
+VAR _HeightPL = (_PL / _MaxValue) * _SVG_Body
+VAR _YPL = _SVG_Body - _HeightPL + _SVG_Header
+
+VAR _HeightPY = (_PY / _MaxValue) * _SVG_Body
+VAR _YPY = _SVG_Body - _HeightPY + _SVG_Header
+
+//===============================================
+// 4. SVG LAYOUT & DEFINITIONS
+//===============================================
+
+VAR _SVG_URLPrefix = "data:image/svg+xml;utf8,"
+VAR _SVG_Open = "<svg xmlns=""http://www.w3.org/2000/svg"" height=""300"">"
+VAR _SVG_Close = "</svg>"
+
+VAR _SVG_TextStyle = "
+<style>
+  <![CDATA[
+    text {
+      font-family: Segoe UI, sans-serif;
+      font-size: " & _FontSizePt & "pt;
+      dominant-baseline: central;
+    }
+  ]]>
+</style>"
+
+VAR SVG_HatchedPattern = "
+<defs>
+  <pattern id='diagonal-stripe' patternUnits='userSpaceOnUse' width='4' height='4'>
+    <rect x='0' y='0' width='4' height='4' fill='#FFFFFF' stroke-width='0'/>
+    <path d='M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2' style='stroke:black; stroke-width:1' />
+  </pattern>
+</defs>"
+
+//===============================================
+// 5. CHART ELEMENTS (SVG PRIMITIVES)
+//===============================================
+
+VAR _SVG_PL = 
+    // Plan: white filled, black outline
+    "<rect x='1' width='" & _ColumnWidth & "' y='" & _YPL & "' height='" & _HeightPL & "' stroke-width='1' stroke='#000000' fill='#FFFFFF'></rect>"
+
+VAR _SVG_ACFC = 
+    // Actual: black filled OR Forecast: hatched
+    "<rect x='" & 1 + _ColumnShift & "' width='" & _ColumnWidth & "' y='" & _YACFC & "' height='" & _HeightACFC & "' stroke-width='1' stroke='#000000' fill='" & 
+    IF(_MainScenario = "AC", _ColorBlack, "url(#diagonal-stripe)") & "'></rect>"
+
+VAR _SVG_Variance = 
+    // Variance bar (Red/Green)
+    "<rect x='" & 
+        IF(_ACFC >= _PL, 1, 1 + _ColumnWidth) & "' width='" & _ColumnShift & "' y='" &
+        MIN(_YACFC, _YPL) & "' height='" & 
+        ABS(_YACFC - _YPL) & "' stroke-width='1' stroke='" & 
+        IF(_ACFC >= _PL, _ColorGreen, _ColorRed) & "' fill='" & 
+        IF(_ACFC >= _PL, _ColorGreen, _ColorRed) & "'></rect>"
+
+VAR _SVG_PY =
+    // Previous Year: grey triangle
+    "<defs><polygon id='Triangle' stroke-width='1.5' stroke='#FFFFFF' fill='" & _ColorGrey & "' points='0 0, 14 7, 0 14' /></defs>
+    <use x='0' y='" & _YPY - 8 & "' href='#Triangle'/>"
+
+VAR _SVG_DataLabel = 
+    // Net Sales label
+    "<text text-anchor='middle' x='" & 1 + _ColumnShift + _ColumnWidth / 2 & "' y='" & _YACFC - _Em * 0.8 & "' paint-order='stroke' stroke='#FFFFFF' stroke-width='3'>" & _ACFC & "</text>"
+
+VAR _SVG_PeriodLabel = 
+    // Month label
+    "<text text-anchor='middle' x='" & 1 + _ColumnShift + _ColumnWidth / 2 & "' y='" & _SVG_Header + _SVG_Body + _Em * 0.8 & "' paint-order='stroke' stroke='#FFFFFF' stroke-width='1'>" & _Period & "</text>"
+
+//===============================================
+// 6. CONCATENATE SVG COMPONENTS
+//===============================================
+
+VAR _SVG = 
+    _SVG_URLPrefix &
+    _SVG_Open &
+    _SVG_PL &
+    _SVG_ACFC &
+    _SVG_Variance &
+    _SVG_PY &
+    _SVG_DataLabel &
+    _SVG_PeriodLabel &
+    _SVG_TextStyle &
+    SVG_HatchedPattern &
+    _SVG_Close
+
+RETURN
+    _SVG
+
+    annotation DAXLIB_PackageId = PowerofBI.IBCS
+
+    annotation DAXLIB_PackageVersion = 0.1.0
