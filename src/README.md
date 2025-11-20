@@ -75,11 +75,11 @@ Use in Matrix, Button List visuals
 <img width="1125" height="510" alt="image" src="https://github.com/user-attachments/assets/62292dfc-ce21-4daa-9bc1-1fa3ed8afab4" />
 
 ```
-PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance (
-    [MSales AC],
-    [MSales PY],
-    [MSales PL],
-    [MSales FC],
+PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance ( 
+    [MSales AC], 
+    [MSales PY], 
+    [MSales PL], 
+    [MSales FC], 
     'Month'[Month]
 )
 ```
