@@ -1,5 +1,5 @@
-function 'IBCS.SVG.BarChart.AbsoluteValues' =
-//DEFINE FUNCTION IBCS.SVG.BarChart.AbsoluteValues =
+// Creates a bar chart that compares absolute values (actual value column, base value column)
+function 'PowerofBI.IBCS.BarChartAbsoluteValues' =
 (
    _ValueMain: scalar VAL,  // actual value
    _ValueSecond: scalar VAL,// forecasted value
@@ -110,6 +110,6 @@ VAR _SVG =
 RETURN
     _SVG
 
-    annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
+    annotation DAXLIB_PackageId = PowerofBI.IBCS
 
-    annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
+    annotation DAXLIB_PackageVersion = 0.1.0
