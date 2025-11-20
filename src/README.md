@@ -20,13 +20,13 @@ The functions generate SVG code. Change the measure's data category to "Image UR
 
 ## Usage Examples
 
-### PowerofBI.IBCS.BarChartAbsoluteValues
+### PowerofBI.IBCS.BarChart.AbsoluteValues
 <img width="267" height="150" alt="image" src="https://github.com/user-attachments/assets/75cc6271-17eb-4466-bbeb-91c0641c090d" />
 
 Use in Table, Matrix, Button List visuals
 
 ```
-PowerofBI.IBCS.BarChartAbsoluteValues (
+PowerofBI.IBCS.BarChart.AbsoluteValues (
     [Sales AC],
     BLANK (),
     [Sales PY],
@@ -37,13 +37,13 @@ PowerofBI.IBCS.BarChartAbsoluteValues (
 )
 ```
 
-### PowerofBI.IBCS.BarChartAbsoluteVariance
+### PowerofBI.IBCS.BarChart.AbsoluteVariance
 <img width="378" height="161" alt="image" src="https://github.com/user-attachments/assets/8cf32b8d-bc85-48b2-bab9-93b9b09f99c5" />
 
 Use in Table, Matrix, Button List visuals
 
 ```
-PowerofBI.IBCS.BarChartAbsoluteVariance (
+PowerofBI.IBCS.BarChart.AbsoluteVariance (
     [Delta PY],
     FORMAT ( [Delta PY], "#0,," ),
     NOT ( HASONEVALUE ( 'Store'[Name] ) ),
@@ -53,13 +53,13 @@ PowerofBI.IBCS.BarChartAbsoluteVariance (
 )
 ```
 
-### PowerofBI.IBCS.BarChartRelativeVariance
+### PowerofBI.IBCS.BarChart.RelativeVariance
 <img width="290" height="150" alt="image" src="https://github.com/user-attachments/assets/c8a310e4-38d4-406d-8029-4f89bba522ad" />
 
 Use in Table, Matrix, Button List visuals
 
 ```
-PowerofBI.IBCS.BarChartRelativeVariance (
+PowerofBI.IBCS.BarChart.RelativeVariance (
     [Delta PY%] * 100,
     FORMAT ( [Delta PY%] * 100, "+#,0;-#,0;#,0" ),
     NOT ( HASONEVALUE ( 'Store'[Name] ) )
@@ -68,11 +68,11 @@ PowerofBI.IBCS.BarChartRelativeVariance (
 
 Use in Matrix, Button List visuals
 
-### PowerofBI.IBCS.ColumnChartWithAbsoluteVariance
+### PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance
 <img width="1125" height="510" alt="image" src="https://github.com/user-attachments/assets/62292dfc-ce21-4daa-9bc1-1fa3ed8afab4" />
 
 ```
-PowerofBI.IBCS.ColumnChartWithAbsoluteVariance (
+PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance (
     [MSales AC],
     [MSales PY],
     [MSales PL],
