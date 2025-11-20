@@ -1,4 +1,6 @@
-function 'SVG.IBCS.BarChart.AbsoluteValues =
+// DEFINE FUNCTION _IBCS.BarChart.AbsoluteValues =
+
+function 'IBCS.SVG.BarChart.AbsoluteValues' =
 (
    _ValueMain: scalar VAL,  // actual value
    _ValueSecond: scalar VAL,// forecasted value
