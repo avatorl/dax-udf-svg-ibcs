@@ -1,6 +1,6 @@
-# IBCS.SVG
+# PowerofBI.IBCS
 
-DAX User-Defined Functions for IBCS-guided SVG Visualizations
+DAX User-Defined Functions (UDFs) for Embedding IBCS-guided SVG Visualizations into Core Visuals
 
 About International Business Communication Standards (IBCS):
 
@@ -20,13 +20,13 @@ The functions generate SVG code. Change the measure's data category to "Image UR
 
 ## Usage Examples
 
-### IBCS.SVG.BarChart.AbsoluteValues
+### PowerofBI.IBCS.BarChartAbsoluteValues
 <img width="267" height="150" alt="image" src="https://github.com/user-attachments/assets/75cc6271-17eb-4466-bbeb-91c0641c090d" />
 
 Use in Table, Matrix, Button List visuals
 
 ```
-IBCS.SVG.BarChart.AbsoluteValues (
+PowerofBI.IBCS.BarChartAbsoluteValues (
     [Sales AC],
     BLANK (),
     [Sales PY],
@@ -37,13 +37,13 @@ IBCS.SVG.BarChart.AbsoluteValues (
 )
 ```
 
-### IBCS.SVG.BarChart.AbsoluteVariance
+### PowerofBI.IBCS.BarChartAbsoluteVariance
 <img width="378" height="161" alt="image" src="https://github.com/user-attachments/assets/8cf32b8d-bc85-48b2-bab9-93b9b09f99c5" />
 
 Use in Table, Matrix, Button List visuals
 
 ```
-IBCS.SVG.BarChart.AbsoluteVariance (
+PowerofBI.IBCS.BarChartAbsoluteVariance (
     [Delta PY],
     FORMAT ( [Delta PY], "#0,," ),
     NOT ( HASONEVALUE ( 'Store'[Name] ) ),
@@ -53,13 +53,13 @@ IBCS.SVG.BarChart.AbsoluteVariance (
 )
 ```
 
-### IBCS.SVG.BarChart.RelativeVariance
+### PowerofBI.IBCS.BarChartRelativeVariance
 <img width="290" height="150" alt="image" src="https://github.com/user-attachments/assets/c8a310e4-38d4-406d-8029-4f89bba522ad" />
 
 Use in Table, Matrix, Button List visuals
 
 ```
-IBCS.SVG.BarChart.RelativeVariance (
+PowerofBI.IBCS.BarChartRelativeVariance (
     [Delta PY%] * 100,
     FORMAT ( [Delta PY%] * 100, "+#,0;-#,0;#,0" ),
     NOT ( HASONEVALUE ( 'Store'[Name] ) )
@@ -68,11 +68,11 @@ IBCS.SVG.BarChart.RelativeVariance (
 
 Use in Matrix, Button List visuals
 
-### IBCS.SVG.ColumnChart.WithAbsoluteVariance
+### PowerofBI.IBCS.ColumnChartWithAbsoluteVariance
 <img width="1125" height="510" alt="image" src="https://github.com/user-attachments/assets/62292dfc-ce21-4daa-9bc1-1fa3ed8afab4" />
 
 ```
-IBCS.SVG.ColumnChart.WithAbsoluteVariance (
+PowerofBI.IBCS.ColumnChartWithAbsoluteVariance (
     [MSales AC],
     [MSales PY],
     [MSales PL],
