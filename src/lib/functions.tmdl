@@ -268,11 +268,18 @@ RETURN
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
 /// Creates a bar chart that shows the relative (%) variance between two values
+/// @param {scalar} valueMain
+/// @param {string} dataLabel
+/// @param {boolean} isTotalRow
+/// @param {scalar} valueMax
+/// @param {scalar} valueMin
+/// @param {scalar} valueScale
+/// @returns SVG image
 function 'PowerofBI.IBCS.BarChart.RelativeVariance' =
 (
-   _ValueMain: scalar VAL,  // actual value
-   _DataLabel: STRING VAL,  // data label
-   _IsTotalRow: BOOLEAN VAL // is it a total row: TRUE() or FALSE(); ; use NOT ( HASONEVALUE () )
+   valueMain: SCALAR VAL,  // actual value
+   dataLabel: STRING VAL,  // data label
+   isTotalRow: BOOLEAN VAL // is it a total row: TRUE() or FALSE(); ; use NOT ( HASONEVALUE () )
 ) 
 => 
 //=================================================================================================
@@ -298,9 +305,9 @@ function 'PowerofBI.IBCS.BarChart.RelativeVariance' =
 VAR _minDelta = 0
 VAR _Rank =
     1000000000000
-        + ROUND ( _ValueMain + 100, 0 ) --row value converted to a string that allows correct column sorting
+        + ROUND ( valueMain + 100, 0 ) --row value converted to a string that allows correct column sorting
 VAR _ValueFix =
-    MIN ( 100, _ValueMain )
+    MIN ( 100, valueMain )
 VAR _ColorGrey = "#C6C6C6"
 VAR _ColorRed = "#FF0000"
 VAR _ColorGreen = "#008e96"
@@ -311,7 +318,7 @@ VAR _Em = 18 * 4 / 3 --px
 VAR _FontWeight =
     --'normal' font for sales persons, 'bold' font for total row (average)
     IF (
-        _IsTotalRow,
+        isTotalRow,
         "bold",
         "normal"
     )
@@ -336,37 +343,37 @@ VAR _WidthValue =
     )
 VAR _barColor =
     --green or red
-    IF ( _ValueMain > 0, _ColorGreen, _ColorRed )
+    IF ( valueMain > 0, _ColorGreen, _ColorRed )
 VAR _X =
     --x position of a bar
     SWITCH (
         TRUE (),
-        _ValueMain >= 0, _AxisYPosition,
-        _ValueMain < 0, _AxisYPosition - _WidthValue
+        valueMain >= 0, _AxisYPosition,
+        valueMain < 0, _AxisYPosition - _WidthValue
     )
 VAR _XPinhead =
     --x position of a bar (pinhead)
     SWITCH (
         TRUE (),
-        _ValueMain >= 0,
+        valueMain >= 0,
             _AxisYPosition + _WidthValue - _Em * 0.4,
-        _ValueMain < 0,
+        valueMain < 0,
             _AxisYPosition - _WidthValue - _Em * 0.3
     )
 VAR _Anchor =
     --text anchor
     IF (
-        _IsTotalRow,
+        isTotalRow,
         "middle",
-        IF ( _ValueMain >= 0, "start", "end" )
+        IF ( valueMain >= 0, "start", "end" )
     )
 VAR _DX =
     --text offset along axis X
     SWITCH (
         TRUE (),
-        _ValueMain >= 0,
-            IF ( _ValueMain > _ValueFix, _Em * 0.3, _Em * 0.7 ) + 5,
-        _ValueMain < 0, - 5
+        valueMain >= 0,
+            IF ( valueMain > _ValueFix, _Em * 0.3, _Em * 0.7 ) + 5,
+        valueMain < 0, - 5
     ) // 
 //=================================================================================================    
 //GENERATE SVG: concatenating parts of the SVG image
@@ -390,23 +397,23 @@ VAR _SVG_SortBy = "/*SortBy:" & _Rank & "*/"
 VAR _SVG_AxisY = "<line id='line-axisy' x1='" & _AxisYPosition & "' x2='" & _AxisYPosition & "' y1='0%' y2='100%' stroke='" & _ColorGrey & "' stroke-width='" & _Em * 0.3 & "'></line >"
 VAR _SVG_BarDeltaPY = "<rect id='rect-variancepin' x='" & _X & "' width='" & _WidthValue & "' y='" & _Em * 0.6 & "' height='" & _Em * 0.3 & "' fill='" & _barColor & "' stroke='" & _barColor & "' stroke-width='0.5'></rect>"
 VAR _SVG_PinHead = "<rect id='rect-pinhead' x='" & _XPinhead & "' width='" & _Em * 0.7 & "' y='" & _Em * 0.3 & "' height='" & _Em * 0.9 & "' fill='#000000'></rect>"
-VAR _SVG_TextDeltaPYLabel = "<text id='text-label' text-anchor='" & _Anchor & "' x='" & _XPinhead & "' dx='" & _DX & "' y='50%' >" & _DataLabel & "</text>"
+VAR _SVG_TextDeltaPYLabel = "<text id='text-label' text-anchor='" & _Anchor & "' x='" & _XPinhead & "' dx='" & _DX & "' y='50%' >" & dataLabel & "</text>"
 VAR _SVG_Outliner =
     "<text id='markoutlier' x='"
         & _XPinhead
             + _Em * 0.55
-                * LEN ( _DataLabel ) & "' dx='" & _DX & "' fill='" & _barColor & "' y='" & _Em * 0.85 & "' >" & _OutlinerTriangle & "</text>"
+                * LEN ( dataLabel ) & "' dx='" & _DX & "' fill='" & _barColor & "' y='" & _Em * 0.85 & "' >" & _OutlinerTriangle & "</text>"
 VAR _SVG_PinHeadX =
     IF (
-        ISBLANK ( _ValueMain ),
+        ISBLANK ( valueMain ),
         "",
-        IF ( _ValueMain > _ValueFix, _SVG_Outliner, _SVG_PinHead )
+        IF ( valueMain > _ValueFix, _SVG_Outliner, _SVG_PinHead )
     )
-VAR _SVG_TextDeltaPYLabelTotal = "<text id='text-labeltotal' x='" & _AxisYPosition & "' y='50%' >" & _DataLabel & "</text>"
+VAR _SVG_TextDeltaPYLabelTotal = "<text id='text-labeltotal' x='" & _AxisYPosition & "' y='50%' >" & dataLabel & "</text>"
 VAR _SVG_Total = _SVG_Header & _SVG_Open & _SVG_TextDeltaPYLabelTotal & _SVG_Style & _SVG_Close
 VAR _SVG_Row = _SVG_Header & _SVG_Open & _SVG_SortBy & _SVG_AxisY & _SVG_PinHeadX & _SVG_BarDeltaPY & _SVG_TextDeltaPYLabel & _SVG_Style & _SVG_Close
 VAR _SVG =
-    IF ( _IsTotalRow, _SVG_Total, _SVG_Row )
+    IF ( isTotalRow, _SVG_Total, _SVG_Row )
 RETURN
     _SVG
 
