@@ -7,6 +7,7 @@
 /// @param {voolean} isTotalRow
 /// @param {scalar} valueMax
 /// @returns SVG image
+function 'PowerofBI.IBCS.BarChart.AbsoluteValues' =
 (
     // Main value (actual)
     valueMain: SCALAR VAL, 
