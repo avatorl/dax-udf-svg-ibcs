@@ -277,9 +277,12 @@ RETURN
 /// @returns SVG image
 function 'PowerofBI.IBCS.BarChart.RelativeVariance' =
 (
-   valueMain: SCALAR VAL,  // actual value
-   dataLabel: STRING VAL,  // data label
-   isTotalRow: BOOLEAN VAL // is it a total row: TRUE() or FALSE(); ; use NOT ( HASONEVALUE () )
+    // Actual value
+    valueMain: SCALAR VAL,
+    // Data label
+    dataLabel: STRING VAL,  
+    // is it a total row: TRUE() or FALSE(); ; use NOT ( ISINSCOPE () )
+    isTotalRow: BOOLEAN VAL
 ) 
 => 
 //=================================================================================================
@@ -422,13 +425,24 @@ RETURN
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
 /// Creates a column chart that shows actual values, previous period values, plan, forecast and variance bars
+/// @param {scalar} valueAC
+/// @param {scalar} valuePY
+/// @param {scalar} valuePL
+/// @param {scalar} valueFC
+/// @param periodColumn
+/// @returns SVG image
 function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
 (
-    _AC: ANYREF,            // Actual Net Sales
-    _PY: ANYREF,            // Previous Year Net Sales
-    _PL: ANYREF,            // Plan (Budget)
-    _FC: ANYREF,            // Forecast Net Sales
-    _PeriodColumn: ANYREF   // Column that holds period (e.g. Month)
+    // Actual Value
+    valueAC: SCALAR VAL,
+    // Previous Year Value
+    valuePY: SCALAR VAL,   
+    // Plan (Budget) Value
+    valuePL: SCALAR VAL,     
+    // Forecast Value
+    valueFC: SCALAR VAL,
+    // Column that holds period (Month)
+    periodColumn: ANYREF
 ) =>
 //=================================================================================================
 // UDF: Returns SVG image for IBCS-styled column chart (Net Sales by Month)
@@ -453,31 +467,31 @@ function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
 // 1. INPUT CALCULATIONS AND CONTEXT
 //===============================================
 
-VAR _ACFC =
+VAR valueACFC =
     // Use Actual if available, otherwise Forecast
-    COALESCE(_AC, _FC)
+    COALESCE(valueAC, valueFC)
 
 VAR _AllPeriods =
     // Get all selected months (for max scaling)
-    ALLSELECTED(_PeriodColumn)
+    ALLSELECTED(periodColumn)
 
 VAR _Period =
     // Current period (Month)
-    SELECTEDVALUE(_PeriodColumn)
+    SELECTEDVALUE(periodColumn)
 
 VAR _MaxValue =
     // Find maximum value among AC, FC, PL, PY across all selected periods (for chart scaling)
     MAXX(
         ADDCOLUMNS(
             _AllPeriods,
-            "@Max", MAX(MAX(_PY, _PL), COALESCE(_AC, _FC))
+            "@Max", MAX(MAX(valuePY, valuePL), COALESCE(valueAC, valueFC))
         ),
         [@Max]
     )
 
 VAR _MainScenario =
     // Define whether we're in Actuals or Forecast mode
-    IF(ISBLANK(_AC), "FC", "AC")
+    IF(ISBLANK(valueAC), "FC", "AC")
 
 //===============================================
 // 2. FORMATTING CONFIGURATION
@@ -508,13 +522,13 @@ VAR _SVG_Body = _SVGHeight - _SVG_Header - _SVG_Footer
 // 3. VALUE-TO-PIXEL CONVERSIONS
 //===============================================
 
-VAR _HeightACFC = (_ACFC / _MaxValue) * _SVG_Body
+VAR _HeightACFC = (valueACFC / _MaxValue) * _SVG_Body
 VAR _YACFC = _SVG_Body - _HeightACFC + _SVG_Header
 
-VAR _HeightPL = (_PL / _MaxValue) * _SVG_Body
+VAR _HeightPL = (valuePL / _MaxValue) * _SVG_Body
 VAR _YPL = _SVG_Body - _HeightPL + _SVG_Header
 
-VAR _HeightPY = (_PY / _MaxValue) * _SVG_Body
+VAR _HeightPY = (valuePY / _MaxValue) * _SVG_Body
 VAR _YPY = _SVG_Body - _HeightPY + _SVG_Header
 
 //===============================================
@@ -548,11 +562,11 @@ VAR SVG_HatchedPattern = "
 // 5. CHART ELEMENTS (SVG PRIMITIVES)
 //===============================================
 
-VAR _SVG_PL = 
+VAR _SVGvaluePL = 
     // Plan: white filled, black outline
     "<rect x='1' width='" & _ColumnWidth & "' y='" & _YPL & "' height='" & _HeightPL & "' stroke-width='1' stroke='#000000' fill='#FFFFFF'></rect>"
 
-VAR _SVG_ACFC = 
+VAR _SVGvalueACFC = 
     // Actual: black filled OR Forecast: hatched
     "<rect x='" & 1 + _ColumnShift & "' width='" & _ColumnWidth & "' y='" & _YACFC & "' height='" & _HeightACFC & "' stroke-width='1' stroke='#000000' fill='" & 
     IF(_MainScenario = "AC", _ColorBlack, "url(#diagonal-stripe)") & "'></rect>"
@@ -560,20 +574,20 @@ VAR _SVG_ACFC =
 VAR _SVG_Variance = 
     // Variance bar (Red/Green)
     "<rect x='" & 
-        IF(_ACFC >= _PL, 1, 1 + _ColumnWidth) & "' width='" & _ColumnShift & "' y='" &
+        IF(valueACFC >= valuePL, 1, 1 + _ColumnWidth) & "' width='" & _ColumnShift & "' y='" &
         MIN(_YACFC, _YPL) & "' height='" & 
         ABS(_YACFC - _YPL) & "' stroke-width='1' stroke='" & 
-        IF(_ACFC >= _PL, _ColorGreen, _ColorRed) & "' fill='" & 
-        IF(_ACFC >= _PL, _ColorGreen, _ColorRed) & "'></rect>"
+        IF(valueACFC >= valuePL, _ColorGreen, _ColorRed) & "' fill='" & 
+        IF(valueACFC >= valuePL, _ColorGreen, _ColorRed) & "'></rect>"
 
-VAR _SVG_PY =
+VAR _SVGvaluePY =
     // Previous Year: grey triangle
     "<defs><polygon id='Triangle' stroke-width='1.5' stroke='#FFFFFF' fill='" & _ColorGrey & "' points='0 0, 14 7, 0 14' /></defs>
     <use x='0' y='" & _YPY - 8 & "' href='#Triangle'/>"
 
 VAR _SVG_DataLabel = 
     // Net Sales label
-    "<text text-anchor='middle' x='" & 1 + _ColumnShift + _ColumnWidth / 2 & "' y='" & _YACFC - _Em * 0.8 & "' paint-order='stroke' stroke='#FFFFFF' stroke-width='3'>" & _ACFC & "</text>"
+    "<text text-anchor='middle' x='" & 1 + _ColumnShift + _ColumnWidth / 2 & "' y='" & _YACFC - _Em * 0.8 & "' paint-order='stroke' stroke='#FFFFFF' stroke-width='3'>" & valueACFC & "</text>"
 
 VAR _SVG_PeriodLabel = 
     // Month label
@@ -586,10 +600,10 @@ VAR _SVG_PeriodLabel =
 VAR _SVG = 
     _SVG_URLPrefix &
     _SVG_Open &
-    _SVG_PL &
-    _SVG_ACFC &
+    _SVGvaluePL &
+    _SVGvalueACFC &
     _SVG_Variance &
-    _SVG_PY &
+    _SVGvaluePY &
     _SVG_DataLabel &
     _SVG_PeriodLabel &
     _SVG_TextStyle &
