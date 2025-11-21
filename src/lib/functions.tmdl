@@ -4,7 +4,7 @@
 /// @param {scalar} valueBase
 /// @param {string} baseType
 /// @param {string} dataLabel
-/// @param {voolean} isTotalRow
+/// @param {boolean} isTotalRow
 /// @param {scalar} valueMax
 /// @returns SVG image
 function 'PowerofBI.IBCS.BarChart.AbsoluteValues' =
