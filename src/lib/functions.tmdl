@@ -7,7 +7,6 @@
 /// @param {voolean} isTotalRow
 /// @param {scalar} valueMax
 /// @returns SVG image
-function 'PowerofBI.IBCS.BarChart.AbsoluteValues' =
 (
     // Main value (actual)
     valueMain: SCALAR VAL, 
@@ -25,8 +24,6 @@ function 'PowerofBI.IBCS.BarChart.AbsoluteValues' =
    valueMax: SCALAR VAL
 )
 =>
-
-// UDF
 //=================================================================================================
 //Project: an UDF for generating IBCS-styled charts (as SVG images)
 //  The visualization design follows IBCS guidelines https://www.ibcs.com/ibcs-standards-1-2/
