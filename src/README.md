@@ -4,9 +4,9 @@ DAX user-defined functions for creating International Business Communication Sta
 
 About IBCS and IBCS-guided SVG visualizations embedded into core Power BI visuals:
 
-➡️ https://www.powerofbi.org/ibcs/
+🔗 https://www.powerofbi.org/ibcs/
 
-➡️ https://www.powerofbi.org/category/data-visualization/ibcs/
+🔗 https://www.powerofbi.org/category/data-visualization/ibcs/
 
 ## Usage Instructions
 
