@@ -124,9 +124,9 @@ VAR _SVG =
 RETURN 
     _SVG
 
-    annotation DAXLIB_PackageId = PowerofBI.IBCS
+	annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
 
-    annotation DAXLIB_PackageVersion = 0.1.0
+	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
 /// Creates a bar chart that shows the absolute variance between two values
 function 'PowerofBI.IBCS.BarChart.AbsoluteVariance' =
@@ -253,9 +253,9 @@ VAR _SVG =
 RETURN
     _SVG
 
-    annotation DAXLIB_PackageId = PowerofBI.IBCS
+	annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
 
-    annotation DAXLIB_PackageVersion = 0.1.0
+	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
 /// Creates a bar chart that shows the relative (%) variance between two values
 function 'PowerofBI.IBCS.BarChart.RelativeVariance' =
@@ -400,9 +400,9 @@ VAR _SVG =
 RETURN
     _SVG
 
-    annotation DAXLIB_PackageId = PowerofBI.IBCS
+	annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
 
-    annotation DAXLIB_PackageVersion = 0.1.0
+	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
 /// Creates a column chart that shows actual values, previous period values, plan, forecast and variance bars
 function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
@@ -582,6 +582,6 @@ VAR _SVG =
 RETURN
     _SVG
 
-    annotation DAXLIB_PackageId = PowerofBI.IBCS
+	annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
 
-    annotation DAXLIB_PackageVersion = 0.1.0
+	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
