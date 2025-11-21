@@ -1,15 +1,24 @@
-/// Creates a bar chart that compares absolute values (actual value column, base value column)
+/// Creates a bar chart (SVG-image) that compares absolute values (actual value vs base value)
+/// @param {scalar} valueMain - Main value (actual)
+/// @param {scalar} valueSecond - Secondary value (forecasted)
+/// @param {scalar} valueBase - Base value (previous year)
+/// @param {string} baseType - Base value type: "grey" or "outlined"
+/// @param {string} dataLabel - data (bar) label
+/// @param {voolean} isTotalRow - is it a total row? - to treat total rows differently
+/// @param {scalar} valueMax -  max of main, secondary and base values for all items in the visual (ALLSELECTED) - for scaling
+/// @returns SVG image
 function 'PowerofBI.IBCS.BarChart.AbsoluteValues' =
 (
-   _ValueMain: scalar VAL,  // actual value
-   _ValueSecond: scalar VAL,// forecasted value
-   _ValueBase: scalar VAL,  // base value (e.g. previous period)
-   _BaseType: STRING VAL,   // base type: "grey" or "outlined"
-   _DataLabel: scalar VAL,  // data label
-   _IsTotalRow: BOOLEAN VAL, // is it a total row: TRUE() or FALSE()
-   _valueMax: scalar VAL    // Max of main and base values for all items in the table (ALLSELECTED)
+   valueMain: SCALAR VAL,
+   valueSecond: SCALAR VAL,
+   valueBase: SCALAR VAL,
+   baseType: STRING VAL,
+   dataLabel: STRING VAL,
+   isTotalRow: BOOLEAN VAL,
+   valueMax: SCALAR VAL
 )
 =>
+
 // UDF
 //=================================================================================================
 //Project: an UDF for generating IBCS-styled charts (as SVG images)
@@ -28,7 +37,6 @@ function 'PowerofBI.IBCS.BarChart.AbsoluteValues' =
 //  The chart includes a base value bar: grey for the Previous Year (PY) or outlined for the Budget (BU)
 //  The main and second value stacked bars are represented with the main value (AC, actuals) in solid black and the second value (FC, forecast) hatched
 //  It also includes data labels for and reference value triangles: outlined for the Budget (BU) or in grey  the Previous Year (PY)
-//Updated: 2025-09-15
 //=================================================================================================    
 //CONFIG: chart formatting options
 //=================================================================================================//
@@ -39,11 +47,11 @@ VAR _SVG_RightPadding = 240 --right side padding (space for data labels)
 VAR _ColorMain = "#404040"
 VAR _ColorSecond = "#C6C6C6"
 VAR _Rank =
-    1000000000000 + ROUND ( _ValueMain, 0 ) --a value that will be used to sort the column (main value converted into a sortable string)
+    1000000000000 + ROUND ( valueMain, 0 ) --a value that will be used to sort the column (main value converted into a sortable string)
 VAR _ColorBase =
-    SWITCH ( _BaseType, "grey", _ColorSecond, "outlined", "#FFFFFF" ) --base value columns are either grey or white with black outline
+    SWITCH ( baseType, "grey", _ColorSecond, "outlined", "#FFFFFF" ) --base value columns are either grey or white with black outline
 VAR _ColorBaseOutline =
-    SWITCH ( _BaseType, "grey", _ColorSecond, "outlined", _ColorMain ) --base value columns are either grey or white with black outline
+    SWITCH ( baseType, "grey", _ColorSecond, "outlined", _ColorMain ) --base value columns are either grey or white with black outline
 VAR _Em =
     ROUND ( _FontSize * 4 / 3, 0 ) --convert Pt font size to Px font size
 VAR _AxisLineWidth = _Em * 0.1
@@ -51,7 +59,7 @@ VAR _mainBarYPosition = _Em * 0.25
 VAR _LabelOffset = 5 --offset between bars and data labels
 VAR _FontWeight =
     --bold font for the total row
-    IF ( _IsTotalRow, "bold", "normal" ) //
+    IF ( isTotalRow, "bold", "normal" ) //
 // set image width (Format Pane) to [SVG Width]
 // set image height (Format Pane) to _Em*1.5 (=36 for Font Size 18)  
 //=================================================================================================
@@ -59,13 +67,13 @@ VAR _FontWeight =
 //=================================================================================================
 VAR _SVG_ColumnWidth = _SVG_Width - _SVG_LeftPadding - _SVG_RightPadding
 VAR _Scale =
-    DIVIDE ( _SVG_ColumnWidth, _ValueMax ) -- how many pixels per value unit
+    DIVIDE ( _SVG_ColumnWidth, valueMax ) -- how many pixels per value unit
 VAR _WidthMain =
-    ROUND ( _ValueMain * _Scale, 0 ) --Main bar width (length)
+    ROUND ( valueMain * _Scale, 0 ) --Main bar width (length)
 VAR _WidthSecond =
-    ROUND ( _ValueSecond * _Scale, 0 ) --Second bar width (length), stacked with the main bar
+    ROUND ( valueSecond * _Scale, 0 ) --Second bar width (length), stacked with the main bar
 VAR _WidthBase =
-    ROUND ( _ValueBase * _Scale, 0 ) --Base bar width (length)    
+    ROUND ( valueBase * _Scale, 0 ) --Base bar width (length)    
 //
 //=================================================================================================    
 //GENERATE SVG: concatenating parts of the SVG image
@@ -100,13 +108,13 @@ VAR _SVG_LineAxisY = "<line id='line-axisY'  x1='" & _SVG_LeftPadding & "px' x2=
 VAR _SVG_BarBase = "<rect id='rect-base-value' x='" & _SVG_LeftPadding & "px' width='" & _WidthBase & "' y='0' height='" & _Em & "' fill='" & _ColorBase & "' stroke='" & _ColorBaseOutline & "' stroke-width='1'></rect>"
 VAR _SVG_BarMain = "<rect id='rect-main-value' x='" & _SVG_LeftPadding & "px' width='" & _WidthMain & "' y='" & _mainBarYPosition & "' height='" & _Em & "' fill='" & _ColorMain & "' stroke='" & _ColorMain & "' stroke-width='1.5'></rect>" //
 VAR _SVG_BarSecond = "<rect x='" & _SVG_LeftPadding + _WidthMain & "px' width='" & _WidthSecond & "' y='" & _Em * 0.25 & "' height='" & _Em & "' fill='" & "url(#diagonal-stripe)" & "' stroke='" & _ColorMain & "' stroke-width='0.5'></rect>" //
-VAR _SVG_TextACFCLabel = "<text x='" & _SVG_LeftPadding + _WidthMain + _WidthSecond & "' dx='" & _LabelOffset & "' y='50%' >" & _DataLabel & "</text>"
-VAR _SVG_TextACFCLabelTotal = "<text x='" & _SVG_LeftPadding & "' dx='" & 0 & "' y='50%' >" & _DataLabel & "</text>"
+VAR _SVG_TextACFCLabel = "<text x='" & _SVG_LeftPadding + _WidthMain + _WidthSecond & "' dx='" & _LabelOffset & "' y='50%' >" & dataLabel & "</text>"
+VAR _SVG_TextACFCLabelTotal = "<text x='" & _SVG_LeftPadding & "' dx='" & 0 & "' y='50%' >" & dataLabel & "</text>"
 VAR _SVG_Total = _SVG_Header & _SVG_Open & _SVG_TextACFCLabelTotal & _SVG_Style & _SVG_Close
 VAR _SVG_Row = _SVG_Header & _SVG_Open & _SVG_SortBy & _SVG_Box & SVG_HatchedPattern & _SVG_BarBase & _SVG_BarMain & _SVG_BarSecond & _SVG_LineAxisY & _SVG_TextACFCLabel & _SVG_Style & _SVG_Close //
 VAR _SVG =
-    IF ( _IsTotalRow, _SVG_Total, _SVG_Row )
-RETURN
+    IF ( isTotalRow, _SVG_Total, _SVG_Row )
+RETURN 
     _SVG
 
     annotation DAXLIB_PackageId = PowerofBI.IBCS
