@@ -1,4 +1,4 @@
-// Creates a bar chart that compares absolute values (actual value column, base value column)
+/// Creates a bar chart that compares absolute values (actual value column, base value column)
 function 'PowerofBI.IBCS.BarChart.AbsoluteValues' =
 (
    _ValueMain: scalar VAL,  // actual value
@@ -113,7 +113,7 @@ RETURN
 
     annotation DAXLIB_PackageVersion = 0.1.0
 
-// Creates a bar chart that shows the absolute variance between two values
+/// Creates a bar chart that shows the absolute variance between two values
 function 'PowerofBI.IBCS.BarChart.AbsoluteVariance' =
 (
    _ValueMain: scalar VAL,  // absolute variance = actual value - base (previous year) value
@@ -242,7 +242,7 @@ RETURN
 
     annotation DAXLIB_PackageVersion = 0.1.0
 
-// Creates a bar chart that shows the relative (%) variance between two values
+/// Creates a bar chart that shows the relative (%) variance between two values
 function 'PowerofBI.IBCS.BarChart.RelativeVariance' =
 (
    _ValueMain: scalar VAL,  // actual value
@@ -389,7 +389,7 @@ RETURN
 
     annotation DAXLIB_PackageVersion = 0.1.0
 
-// Creates a column chart that shows actual values, previous period values, plan, forecast and variance bars
+/// Creates a column chart that shows actual values, previous period values, plan, forecast and variance bars
 function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
 (
     _AC: ANYREF,            // Actual Net Sales
