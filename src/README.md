@@ -8,6 +8,10 @@ About IBCS and IBCS-guided SVG visualizations embedded into core Power BI visual
 
 🔗 https://www.powerofbi.org/category/data-visualization/ibcs/
 
+Author: Andrzej Leszkiewicz
+
+🔗 https://powerofbi.org/about
+
 ## Usage Instructions
 
 These UDFs generate charts (as SVG images) that can be embedded into Power BI core visuals such as table, matrix, button slicer, list slicer, card (new), or image (depending on the chart type).
