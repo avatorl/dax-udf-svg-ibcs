@@ -127,14 +127,27 @@ RETURN
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
 /// Creates a bar chart that shows the absolute variance between two values
+/// @param {scalar} valueMain
+/// @param {string} dataLabel
+/// @param {boolean} isTotalRow
+/// @param {scalar} valueMax
+/// @param {scalar} valueMin
+/// @param {scalar} valueScale
+/// @returns SVG image
 function 'PowerofBI.IBCS.BarChart.AbsoluteVariance' =
 (
-   _ValueMain: scalar VAL,  // absolute variance = actual value - base (previous year) value
-   _DataLabel: STRING VAL,  // data label - formatted variance value; use FORMAT()
-   _IsTotalRow: BOOLEAN VAL, // is it a total row: TRUE() or FALSE(); use NOT ( HASONEVALUE () )
-   _valueMax: scalar VAL,    // Max of the variance for all items in the table (ALLSELECTED)
-   _valueMin: scalar VAL,    // Min of the variance for all items in the table (ALLSELECTED)
-   _ValueScale: SCALAR VAL // Max of the both (main and base) absolute values for all items in the table (ALLSELECTED)
+    // Absolute variance = actual value - base (previous year) value
+    valueMain: SCALAR VAL,
+    // Data label - formatted variance value. Use FORMAT()
+    dataLabel: STRING VAL,  
+    // Is it a total row? Use NOT ( ISINSCOPE () )
+    isTotalRow: BOOLEAN VAL, 
+    // Max of the variance for all items in the table (ALLSELECTED)
+    valueMax: SCALAR VAL,  
+    // Min of the variance for all items in the table (ALLSELECTED)
+    valueMin: SCALAR VAL,    
+    // Max of the both (main and base) absolute values for all items in the table (ALLSELECTED)
+    valueScale: SCALAR VAL
 )
 => 
 //=================================================================================================
@@ -153,13 +166,12 @@ function 'PowerofBI.IBCS.BarChart.AbsoluteVariance' =
 //Description: This UDF Generates an SVG image featuring a horizontal diverging bar chart (to show absolute variance)
 //  The chart includes diverging bars value bar: green for positive variance, red for negative variance
 //  It also includes data labels (for all bars)
-//Updated: 2025-09-16   
 //=================================================================================================    
 //CONFIG: chart formatting options
 //=================================================================================================//
 VAR _Rank =
     1000000000000
-        + ROUND ( _ValueMain + ABS ( _valueMin ), 0 ) --row value converted to a string that allows correct column sorting
+        + ROUND ( valueMain + ABS ( valueMin ), 0 ) --row value converted to a string that allows correct column sorting
 VAR _SVG_Width = 400
 VAR _ColorGrey = "#C6C6C6"
 VAR _ColorRed = "#FF0000"
@@ -169,11 +181,11 @@ VAR _SVG_LeftPadding = 120
 VAR _SVG_RightPadding = 120
 VAR _SVG_ColumnWidth = _SVG_Width - _SVG_LeftPadding - _SVG_RightPadding
 VAR _Scale =
-    DIVIDE ( _SVG_ColumnWidth, _ValueScale )
+    DIVIDE ( _SVG_ColumnWidth, valueScale )
 VAR _FontWeight =
     --'normal' font for sales persons, 'bold' font for total row (average)
     IF (
-        _IsTotalRow,
+        isTotalRow,
         "bold",
         "normal"
     ) //
@@ -183,46 +195,46 @@ VAR _FontWeight =
 VAR _AxisYPosition =
     _SVG_LeftPadding
         + IF (
-            _valueMin >= 0,
+            valueMin >= 0,
             0,
             ROUND (
-                DIVIDE ( ABS ( _valueMin ), ABS ( _valueMin ) + _valueMax ) * _SVG_ColumnWidth,
+                DIVIDE ( ABS ( valueMin ), ABS ( valueMin ) + valueMax ) * _SVG_ColumnWidth,
                 0
             )
         )
 VAR _WidthValue =
     --bar width (numeric value)
-    ROUND ( ABS ( _ValueMain ) * _Scale, 0 )
+    ROUND ( ABS ( valueMain ) * _Scale, 0 )
 VAR _barColor =
     --green or red
-    IF ( _ValueMain > 0, _ColorGreen, _ColorRed )
+    IF ( valueMain > 0, _ColorGreen, _ColorRed )
 VAR _X =
     --x position of a bar
     SWITCH (
         TRUE (),
-        _ValueMain >= 0, _AxisYPosition,
-        _ValueMain < 0, _AxisYPosition - _WidthValue
+        valueMain >= 0, _AxisYPosition,
+        valueMain < 0, _AxisYPosition - _WidthValue
     )
 VAR _XText =
     --x position of a label
     SWITCH (
         TRUE (),
-        _ValueMain >= 0, _AxisYPosition + _WidthValue,
-        _ValueMain < 0, _X
+        valueMain >= 0, _AxisYPosition + _WidthValue,
+        valueMain < 0, _X
     )
 VAR _Anchor =
     --text anchor
     IF (
-        _IsTotalRow,
+        isTotalRow,
         "middle",
-        IF ( _ValueMain >= 0, "start", "end" )
+        IF ( valueMain >= 0, "start", "end" )
     )
 VAR _DX =
     --text offset along axis X
     SWITCH (
         TRUE (),
-        _ValueMain >= 0, 5,
-        _ValueMain < 0, -5
+        valueMain >= 0, 5,
+        valueMain < 0, -5
     ) //
 //=================================================================================================    
 //GENERATE SVG: concatenating parts of the SVG image
@@ -242,12 +254,12 @@ VAR _SVG_Close = "</svg>"
 VAR _SVG_SortBy = "/*SortBy:" & _Rank & "*/" //VAR _SVG_Box = "<rect x='0%' y='0%' width='100%' height='100%' fill='#FFAAAA' />"
 VAR _SVG_AxisY = "<line  x1='" & _AxisYPosition & "' x2='" & _AxisYPosition & "' y1='0%' y2='100%' stroke='" & _ColorGrey & "' stroke-width='" & _Em * 0.3 & "'></line >"
 VAR _SVG_BarDeltaPY = "<rect x='" & _X & "' width='" & _WidthValue & "' y='" & _Em * 0.25 & "' height='" & _Em & "' fill='" & _barColor & "' stroke='" & _barColor & "' stroke-width='0.5'></rect>"
-VAR _SVG_TextDeltaPYLabel = "<text x='" & _XText & "' dx='" & _DX & "' y='50%' >" & _DataLabel & "</text>"
-VAR _SVG_TextDeltaPYLabelTotal = "<text x='" & _AxisYPosition & "' dx='" & 0 & "' y='50%' >" & _DataLabel & "</text>"
+VAR _SVG_TextDeltaPYLabel = "<text x='" & _XText & "' dx='" & _DX & "' y='50%' >" & dataLabel & "</text>"
+VAR _SVG_TextDeltaPYLabelTotal = "<text x='" & _AxisYPosition & "' dx='" & 0 & "' y='50%' >" & dataLabel & "</text>"
 VAR _SVG_Total = _SVG_Header & _SVG_Open & _SVG_TextDeltaPYLabelTotal & _SVG_Style & _SVG_Close
-VAR _SVG_Row = _SVG_Header & _SVG_Open & _SVG_SortBy & _SVG_SortBy & _SVG_AxisY & _SVG_BarDeltaPY & _SVG_TextDeltaPYLabel & _SVG_Style & _SVG_Close //VAR _SVG_SubRow = _SVG_Header & _SVG_Open & "<text x='" & _SVG_LeftPadding & "' dx='" & 0 & "' y='50%' font-weight='" & _FontWeight & "' text-anchor='end'>" & _DataLabel & "</text>" & _SVG_Style & _SVG_Close
+VAR _SVG_Row = _SVG_Header & _SVG_Open & _SVG_SortBy & _SVG_SortBy & _SVG_AxisY & _SVG_BarDeltaPY & _SVG_TextDeltaPYLabel & _SVG_Style & _SVG_Close //VAR _SVG_SubRow = _SVG_Header & _SVG_Open & "<text x='" & _SVG_LeftPadding & "' dx='" & 0 & "' y='50%' font-weight='" & _FontWeight & "' text-anchor='end'>" & dataLabel & "</text>" & _SVG_Style & _SVG_Close
 VAR _SVG =
-    IF ( _IsTotalRow, _SVG_Total, _SVG_Row )
+    IF ( isTotalRow, _SVG_Total, _SVG_Row )
 RETURN
     _SVG
 
