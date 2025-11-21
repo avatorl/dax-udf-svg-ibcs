@@ -1,20 +1,27 @@
 /// Creates a bar chart (SVG-image) that compares absolute values (actual value vs base value)
-/// @param {scalar} valueMain - Main value (actual)
-/// @param {scalar} valueSecond - Secondary value (forecasted)
-/// @param {scalar} valueBase - Base value (previous year)
-/// @param {string} baseType - Base value type: "grey" or "outlined"
-/// @param {string} dataLabel - data (bar) label
-/// @param {voolean} isTotalRow - is it a total row? - to treat total rows differently
-/// @param {scalar} valueMax -  max of main, secondary and base values for all items in the visual (ALLSELECTED) - for scaling
+/// @param {scalar} valueMain
+/// @param {scalar} valueSecond
+/// @param {scalar} valueBase
+/// @param {string} baseType
+/// @param {string} dataLabel
+/// @param {voolean} isTotalRow
+/// @param {scalar} valueMax
 /// @returns SVG image
 function 'PowerofBI.IBCS.BarChart.AbsoluteValues' =
 (
-   valueMain: SCALAR VAL,
+    // Main value (actual)
+    valueMain: SCALAR VAL, 
+    // Secondary value (forecasted)
    valueSecond: SCALAR VAL,
+   // Base value (previous year)
    valueBase: SCALAR VAL,
+   // Base value type: "grey" or "outlined"
    baseType: STRING VAL,
+   // Data (bar) label
    dataLabel: STRING VAL,
+   // Is it a total row? - to treat total rows differently
    isTotalRow: BOOLEAN VAL,
+   // Max of main, secondary and base values for all items in the visual (ALLSELECTED) - for scaling
    valueMax: SCALAR VAL
 )
 =>
