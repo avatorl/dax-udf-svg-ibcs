@@ -100,12 +100,15 @@ PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance (
 
 ### PowerofBI.SVG.PctOfTotalwithPieChart
 
+<img width="123" height="295" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_pct_of_total_pie.png" /></br>
+
 ```
-VAR  _IsTotalRow = NOT ( ISINSCOPE ( 'Customer'[Name] ) )    
 VAR _Total =
-    CALCULATE ( [AC B], ALL ( 'Customer'[Name] ) )
+    CALCULATE ( [AC], ALLSELECTED () )
 VAR _ValuePct =
-    DIVIDE ( IF ( _IsTotalRow, [Other Sales B], [AC B] ), _Total )    
+    DIVIDE ( [AC], _Total )
+VAR _IsTotalRow =
+    NOT ( ISINSCOPE ( 'Payment Mode'[Payment Mode] ) )
 VAR _Result =
     PowerofBI.SVG.PctOfTotalwithPieChart (
         _ValuePct,
