@@ -98,6 +98,27 @@ PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance (
 )
 ```
 
+### PowerofBI.SVG.PctOfTotalwithPieChart
+
+```
+VAR  _IsTotalRow = NOT ( ISINSCOPE ( 'Customer'[Name] ) )    
+VAR _Total =
+    CALCULATE ( [AC B], ALL ( 'Customer'[Name] ) )
+VAR _ValuePct =
+    DIVIDE ( IF ( _IsTotalRow, [Other Sales B], [AC B] ), _Total )    
+VAR _Result =
+    PowerofBI.SVG.PctOfTotalwithPieChart (
+        _ValuePct,
+        FORMAT ( _ValuePct, "#,0%" ),
+        _IsTotalRow,
+        TRUE (),
+        0,
+        0
+    )
+RETURN
+    _Result
+```
+
 ## License
 
 This project is licensed under the MIT License.
