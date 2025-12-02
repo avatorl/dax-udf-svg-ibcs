@@ -616,3 +616,140 @@ function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
     annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
 
     annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
+
+/// Generates an SVG image containing a pie chart and a data label representing the percentage of a value relative to the total (e.g., "21%")
+///
+/// @param {double} valueMain
+/// @param {string} dataLabel
+/// @param {boolean} isTotalRow
+/// @param {boolean} showPieChart
+/// @param {int64} fontSize
+/// @param {int64} imageWidth
+/// @returns SVG image
+function 'PowerofBI.SVG.PctOfTotalwithPieChart' =
+	(
+		// Main value as a decimal fraction (e.g., 0.21 for 21%)
+		valueMain: DOUBLE VAL,
+		// Text label to show, formatted value (e.g., "21%")
+		dataLabel: STRING VAL,
+		// Indicates whether the current row is a total row
+		isTotalRow: BOOLEAN VAL,
+		// Toggle to display the pie chart or not
+		showPieChart: BOOLEAN VAL,
+		// Font size in points (pt) for the data label and pie size
+		fontSize: INT64 VAL,
+		// Width of the image (0 = default)     
+		imageWidth: INT64 VAL
+	)
+	=>
+
+		// Debug mode: 1 = on, 0 = off. Adds a colored box for layout visualization.
+		VAR _DEBUG = 0
+
+		// Default image width
+		VAR _SVG_Width_Default = 350
+
+		// Use specified image width or default
+		VAR _SVG_Width = IF(imageWidth > 0, imageWidth, _SVG_Width_Default)
+
+		// Font size (fallback to 14pt if not specified)
+		VAR _FontSize = IF(fontSize > 0, fontSize, 14)
+
+		// Font weight: bold for total rows, normal for others
+		VAR _FontWeight = IF(isTotalRow, "bold", "normal")
+
+		// Color settings
+		VAR _FillColor               = "#404040"     // Fill color for main pie segment
+		VAR _PieBackgroudFillColor   = "#E0E0E0"     // Background color for unfilled part
+		VAR _FontColor               = "#404040"     // Font color for data label
+
+		// Ranking value used for sorting in visuals (ensures consistent sort order)
+		VAR _Rank = 1000000000000 + ROUND(valueMain, 0)
+
+		// SVG base elements
+		VAR _SVG_Header = "data:image/svg+xml;utf8,"
+		VAR _SVG_Open   = "<svg xmlns='http://www.w3.org/2000/svg' width='" & _SVG_Width & "' >"
+		VAR _SVG_Close  = "</svg>"
+
+		// Convert font size from pt to px (approximate conversion)
+		VAR _Em = _FontSize * 4 / 3
+
+		// Padding before the text
+		VAR _LeftPadding = _Em * 2.5
+
+		// Embedded CSS for SVG
+		VAR _SVG_Style = 
+			"<style>
+				text {
+					font-family: Segoe UI, wf_segoe-ui_normal, sans-serif;
+					font-size: " & _Em & "px;
+					font-weight: " & _FontWeight & ";
+					font-style: italic;
+					dominant-baseline: central;
+				}
+			</style>"
+
+		// Hidden comment to support custom sort order in visuals
+		VAR _SVG_SortBy = "/*SortBy:" & _Rank & "*/"
+
+		// Optional debug rectangle (visible if _DEBUG = 1)
+		VAR _SVG_DebugBox = IF(
+			_DEBUG,
+			"<rect id='rect-debug-box' x='0' y='0' width='100%' height='100%' fill='#FFFFAA' stroke-width='1' stroke='#FF0000' />",
+			""
+		)
+
+		// SVG text element for the percentage label
+		VAR _SVG_Text = 
+			"<text x='" & _LeftPadding & "' y='50%' dy='2' fill='" & _FontColor & "' 
+				alignment-baseline='middle' text-anchor='end'>" & dataLabel & "</text>"
+
+		// Pie chart rendering logic
+		VAR _SVG_pie =
+			VAR Percentage = valueMain * 100
+
+			// Radius of the pie chart
+			VAR _R = _Em * 0.75
+
+			// Center X and Y coordinates for the pie chart
+			VAR CX = _R + _Em * 3
+			VAR CY = _R + 4
+
+			// Render full circle if 100%
+			VAR FullCircle = 
+				"<circle cx='" & CX & "' cy='" & CY & "' r='" & _R & "' fill='" & _FillColor & "'/>"
+
+			// Calculate angles for partial arc
+			VAR Angle      = DIVIDE(Percentage, 100) * 2 * PI()
+			VAR StartAngle = -PI() / 2
+			VAR EndAngle   = StartAngle + Angle
+
+			// Calculate arc endpoint coordinates
+			VAR X = CX + _R * COS(EndAngle)
+			VAR Y = CY + _R * SIN(EndAngle)
+
+			// SVG Arc flag: 1 if arc is greater than 180 degrees
+			VAR LargeArcFlag = IF(Percentage > 50, 1, 0)
+
+			// SVG path for pie chart segment (background + filled arc)
+			VAR Segment = 
+				"<circle cx='" & CX & "' cy='" & CY & "' r='" & _R & "' 
+						fill='" & _PieBackgroudFillColor & "' stroke='white' stroke-width='0.5'/>
+				<path d='M" & CX & "," & CY & "
+						L" & CX & "," & CY - _R & "
+						A" & _R & "," & _R & " 0 " & LargeArcFlag & ",1 " & X & "," & Y & " Z'
+						fill='" & _FillColor & "' stroke='white' stroke-width='0.5' />"
+
+			// Return full or partial pie chart if enabled
+			RETURN IF(showPieChart, IF(Percentage = 100, FullCircle, Segment), "")
+
+		// Final SVG string (data URI)
+		VAR _SVG = 
+			_SVG_Header & _SVG_Open & _SVG_DebugBox & _SVG_Style & _SVG_SortBy & _SVG_Text & _SVG_pie & _SVG_Close
+
+		// Output SVG
+		RETURN _SVG
+
+	annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
+
+	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
