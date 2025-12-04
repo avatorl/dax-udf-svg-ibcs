@@ -14,13 +14,15 @@ Author: Andrzej Leszkiewicz
 
 ## Usage Examples
 
-PBIX files: https://github.com/avatorl/PowerBI-IBCS/blob/main/UDF/
+Interactive Power BI visuals embedded into a web page: https://www.powerofbi.org/powerofbi-ibcs-user-defined-functions/
+
+PBIX files: https://github.com/avatorl/PowerBI-IBCS/blob/main/UDF/ (see the latest available version)
 
 ## Usage Instructions
 
 These UDFs generate charts (as SVG images) that can be embedded into Power BI core visuals such as table, matrix, button slicer, list slicer, card (new), or image (depending on the chart type).
 
-➡️ Create a measure that calls one of the functions (see function-specific instructions inside the function code).
+➡️ Create a measure that calls one of the functions and passes all required parameters.
 
 ➡️ Change the measure's data category to "Image URL" to ensure Power BI renders the SVG images.
 
@@ -36,19 +38,7 @@ Bar chart to compare absolute values (e.g., actual year vs. previous year).
 
 <img width="267" height="150" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_absolute_values.png" /></br>
 
-Use in Table, Matrix, Button List visuals.
-
-```
-PowerofBI.IBCS.BarChart.AbsoluteValues(
-    [AC],
-    BLANK (),
-    [PY],
-    "grey",
-    FORMAT ( [AC], "#0" ),
-    NOT ( ISINSCOPE ( 'Sales Person'[Name] ) ),
-    MAXX ( ALLSELECTED ( 'Sales Person' ), MAX ( [AC], [PY] ) )
-)
-```
+Recommended to use in Table, Matrix, Button Slicer visuals.
 
 ### PowerofBI.IBCS.BarChart.AbsoluteVariance
 
@@ -56,21 +46,7 @@ Bar chart to compare absolute variance (e.g., actual year over previous year).
 
 <img width="378" height="161" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_absolute_variance.png" /></br>
 
-Use in Table, Matrix, Button List visuals.
-
-```
-PowerofBI.IBCS.BarChart.AbsoluteVariance (
-    [DeltaPY],
-    FORMAT ( [DeltaPY], "#0" ),
-    NOT ( ISINSCOPE ( 'Sales Person'[Name] ) ),
-    MAXX ( ALLSELECTED ( 'Sales Person' ), [DeltaPY] ),
-    MINX ( ALLSELECTED ( 'Sales Person' ), [DeltaPY] ),
-    MAX (
-        MAXX ( ALLSELECTED ( 'Sales Person' ), [AC] ),
-        MAXX ( ALLSELECTED ( 'Sales Person' ), [PY] )
-    )    
-)
-```
+Recommended to use in Table, Matrix visuals.
 
 ### PowerofBI.IBCS.BarChart.RelativeVariance
 
@@ -78,33 +54,15 @@ Pin chart to compare relative variance (e.g., actual year over previous year, in
 
 <img width="290" height="150" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_relative_variance.png" /></br>
 
-Use in Table, Matrix, Button List visuals.
-
-```
-PowerofBI.IBCS.BarChart.RelativeVariance (
-    [DeltaPY%],
-    FORMAT ( [DeltaPY%], "+#,0;-#,0;#,0" ),
-    NOT ( ISINSCOPE ( 'Sales Person'[Name] ) )
-)
-```
-
-Use in Matrix, Button List visuals.
+Recommended to use in Table, Matrix visuals.
 
 ### PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance
 
 Column chart to show absolute values (e.g., actual year and previous year) and absolute variance (actual year minus previous year) on a timeline (e.g., months on the X-axis).
 
-<img width="675" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_column_chart_waterfall.png" /></br>
+<img width="675" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_column_chart_absolute.png" /></br>
 
-```
-PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance ( 
-    [MSales AC], 
-    [MSales PY], 
-    [MSales PL], 
-    [MSales FC], 
-    'Month'[Month]
-)
-```
+Recommended to use in Matrix, Button Slicer visuals.
 
 ### PowerofBI.IBCS.Extras.PieChart.PctOfTotal
 
@@ -112,28 +70,17 @@ Small pie charts to show the percent of the total for each table or matrix row.
 
 To strictly follow IBCS, pie charts can be disabled to output only the percent data label (in italic font style, which still requires using SVG because it is not supported natively for specific columns only). But I believe this form of pie charts deserves to exist if used together with absolute variance bars. See Top N + Others Without Any Changes in the Data Model (using PowerofBI.IBCS): 🔗 https://www.powerofbi.org/2025/12/02/top-n-others-without-any-changes-in-the-data-model/.
 
-
 <img width="123" height="295" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_pct_of_total_pie.png" /></br>
 
-```
-VAR _Total =
-    CALCULATE ( [AC], ALLSELECTED () )
-VAR _ValuePct =
-    DIVIDE ( [AC], _Total )
-VAR _IsTotalRow =
-    NOT ( ISINSCOPE ( 'Payment Mode'[Payment Mode] ) )
-VAR _Result =
-    PowerofBI.SVG.PctOfTotalwithPieChart (
-        _ValuePct,
-        FORMAT ( _ValuePct, "#,0%" ),
-        _IsTotalRow,
-        TRUE (),
-        0,
-        0
-    )
-RETURN
-    _Result
-```
+Recommended to use in Table, Matrix visuals.
+
+### PowerofBI.IBCS.ColumnChart.WithWaterfall
+
+3-tier chart (timeline): column chart with absolute values, waterfall with relative changes, and relative variance pins
+
+<img width="660" height="399" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_column_with_waterfall.png" />
+
+Recommended to use in Button Slicer visual.
 
 ## License
 
