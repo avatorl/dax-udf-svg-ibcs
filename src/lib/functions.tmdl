@@ -840,8 +840,8 @@ function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
             
             VAR _ColorBlack = "#202020"
             VAR _ColorGrey  = "#969696"
-            VAR _ColorRed   = "#ff0000"
-            VAR _ColorGreen = "#008e96"
+            VAR _ColorRed   = "#E24B20"
+            VAR _ColorGreen = "#08787D"
             
             VAR _FontSizePt = 16              // font size in pt
             VAR _Em = _FontSizePt * 4 / 3     // convert font size to px
@@ -1200,8 +1200,8 @@ function 'PowerofBI.IBCS.ColumnChart.WithWaterfall' =
 
 			VAR _Color_DarkGrey = "#333333"
 			VAR _Color_LightGrey = "#a6a6a6"
-			VAR _Color_Red = "#ff0000"
-			VAR _Color_Green = "#008e96"
+			VAR _Color_Red = "#E24B20"
+			VAR _Color_Green = "#08787D"
 
 			// ==========================================
 			// SVG DECLARATION
