@@ -1435,3 +1435,218 @@ function 'PowerofBI.IBCS.ColumnChart.WithWaterfall' =
 	annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
 
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
+
+/// Creates absolute and relative variance small multiple column charts
+/// @returns SVG image
+function 'PowerofBI.IBCS.ColumnChart.SmallMultiple' =
+		(
+			// VARiance type: ["Absolute", "Relative"]
+			varianceType: STRING VAL,
+			// column with a list of categories (cards)
+			columnCategory: ANYREF EXPR,
+			// column with a list of periods (Axis X values)
+			columnPeriod: ANYREF EXPR,
+			// absolute variance measure
+			measureDeltaAbsolute: ANYREF EXPR,
+			// relative variance measure (% as whole number)
+			measureDeltaPct: ANYREF EXPR,
+			// last period with actual data available
+			endOfActual: SCALAR VAL,
+			// measure for sort order (add into the Tooltips field)
+			measureSortOrder: SCALAR EXPR,
+			// image width
+			imageWidth: INT64 VAL,
+			// image height
+			imageHeight: INT64 VAL
+			
+		) =>
+			// EVALUATE
+			VAR _IsRelativeVariance = ( varianceType = "Relative" )
+			VAR _Country = SELECTEDVALUE ( columnCategory )   
+			VAR _CategoryRank = RANKX ( ALLSELECTED ( columnCategory ), measureSortOrder,, DESC )
+			VAR _DataTable =
+				-- data table for SVG generator
+				ADDCOLUMNS (
+					VALUES ( columnPeriod ),
+					"@Period", columnPeriod,
+					"@IsActual", columnPeriod <= endOfActual, -- --TRUE for actual period (AC), false for planed period (PL)
+					"@Value", IF ( _IsRelativeVariance, measureDeltaPct, measureDeltaAbsolute )
+				)
+			VAR _TableDataWithRowNum =
+				-- data table with row numbers
+				ADDCOLUMNS (
+					_DataTable,
+					"@rowNum", ROWNUMBER ( _DataTable, ORDERBY ( [@Period], ASC ) )
+				)
+			VAR _PLPeriodStart = endOfActual + 1     
+			VAR _PeriodEnd =MIN ( columnPeriod )
+			VAR _PeriodStart = MAX ( columnPeriod )
+			VAR _PeriodMiddle =
+				--middle year
+				ROUND ( ( _PeriodEnd - _PeriodStart ) / 2 + _PeriodStart, 0 )
+			VAR _AllColumns = -- all data points in the visual
+				CALCULATETABLE (                
+						SUMMARIZECOLUMNS (
+							columnPeriod, columnCategory, "@Value",
+							IF ( _IsRelativeVariance, measureDeltaPct, measureDeltaAbsolute )
+						),
+						ALL ( columnPeriod ), ALL ( columnCategory )
+					)    
+			VAR _MaxValue = -- max value in the visual
+				MAXX ( _AllColumns, [@Value]
+				)
+			VAR _MinValue = -- min value in the visual
+				MINX ( _AllColumns, [@Value]
+				) //
+			// CONFIG       
+			VAR _ColorRed = "#E24B20"
+			VAR _ColorGreen = "#08787D"
+			VAR _ColorBlack = "#000000" --for text and lines
+			VAR _ColorWhite = "#ffffff" --for PL columns fill
+			VAR _ColorPeriodLabel = "#aaaaaa"
+			VAR _SVGWidth = IF ( imageWidth > 0, imageWidth, 350 ) -- --SVG image width, px
+			VAR _SVGHeight = IF ( imageHeight > 0, imageWidth, 220 ) --SVG image height, px
+			VAR _HeaderHeight = 45 -- space on the top (above the plot, for the title), px
+			VAR _FooterHeight = 45 --space on the bottom (below the plot, for period labels), px
+			VAR _PinheadWidthMutiplier = 3
+			VAR _DataLabelOffset = 5 -- px
+			VAR _FontFamily = "Segoe UI,sans-serif"
+			VAR _TitleFontSize = 18
+			VAR _PeriodLabelFontSize = 14
+			VAR _DataLabelFontSize = 16 //
+			VAR _MaxColumnWidth = _DataLabelFontSize * 4 / 3
+			VAR _LineWidth = 0.2 -- px
+			VAR _PlotHeight = _SVGHeight - _HeaderHeight - _FooterHeight --plot height = SVG image height - header and footer height
+			VAR _ColumnWidth = _MaxColumnWidth
+			VAR _SpaceBetweenColumns = _MaxColumnWidth * 2 / 3
+			VAR _Range = --value range
+				SWITCH (
+					TRUE (),
+					_MaxValue < 0, ABS ( _MinValue ),
+					_MinValue > 0, _MaxValue,
+					( _MaxValue - _MinValue )
+				)
+			VAR _ZeroY = --position of 0 line on axis Y
+				_HeaderHeight
+					+ ROUND (
+						DIVIDE ( IF ( _MaxValue >= 0, _MaxValue, 0 ), _Range ) * _PlotHeight,
+						0
+					) //
+			//DATA MARKS
+			VAR _DataMarks =
+				CONCATENATEX (
+					_TableDataWithRowNum,
+					VAR _Value = [@Value]
+					VAR _RowNum = [@rowNum]
+					VAR _Period = [@Period]
+					VAR _IsActual = [@IsActual]
+					VAR _ColumnHeight = --column height in px (scaled)
+						ROUND (
+							DIVIDE ( ABS ( _Value ), _Range ) * _PlotHeight,
+							1
+						)
+					VAR _xPosition = --x position of a column
+					( ( _RowNum - 1 ) * _ColumnWidth ) + ( _spaceBetweenColumns * ( _RowNum - 1 ) ) + IF ( _IsRelativeVariance, _SpaceBetweenColumns*1.5, 0 )
+					VAR _ColumnColorOutline =
+						--outline color (green or red)
+						IF ( _Value >= 0, _ColorGreen, _ColorRed )
+					VAR _ColumnColorFill =
+						--file color: same as outline color for AC, white for PL
+						IF (
+							_IsRelativeVariance,
+							_ColumnColorOutline,
+							IF ( _IsActual, _ColumnColorOutline, _ColorWhite )
+						)
+					VAR _PinheadColorFill =
+						--file color: same as outline color for AC, white for PL
+						IF (
+							_IsActual,
+							_ColorBlack,
+							_ColorWhite
+						)
+					VAR _BarYPosition =
+						--bar start y position (for negative bars - same as zero line postion)
+						_ZeroY
+							+ IF ( _Value >= 0, - _ColumnHeight, 0 )
+					VAR _PeriodLineYPosition =
+						--period line y position
+						_ZeroY
+							+ IF ( _Value >= 0, 0, _ColumnHeight + _DataLabelFontSize ) + _DataLabelOffset * 2
+					VAR _TextYPosition =
+						_ZeroY
+							+ IF (
+								_Value >= 0,
+								- ABS ( _ColumnHeight ) - _DataLabelOffset + IF ( _IsRelativeVariance, -5, - 1 ),
+								ABS ( _ColumnHeight ) + _DataLabelOffset + _DataLabelFontSize + IF ( _IsRelativeVariance, 2, 0 )
+							)
+					VAR _Baseline = -- for data labels
+						IF ( _Value >= 0, "top", "bottom" )
+					VAR _PinheadRect = --rectangle: data column
+						"<rect x='" & _xPosition & "' y='"
+							& _BarYPosition
+								+ IF ( _Value >= 0, 0, _ColumnHeight ) - _ColumnWidth / 3 & "' width = '"
+							& _ColumnWidth * _PinheadWidthMutiplier
+								* IF ( _IsRelativeVariance, 0.2, 1 ) & "' height = '"
+							& _ColumnWidth * _PinheadWidthMutiplier
+								* IF ( _IsRelativeVariance, 0.2, 1 ) & "px' fill='" & _PinheadColorFill & "' stroke='" & _ColorBlack & "' opacity='1' style='outline: none;'></rect>"
+					VAR _DataRect = --rectangle: data column
+						"<rect x='"
+							& _xPosition
+								+ (
+									_ColumnWidth * _PinheadWidthMutiplier
+										* IF ( _IsRelativeVariance, 0.2, 1 )
+								) / 3 & "' y='" & _BarYPosition & "' width = '"
+							& _ColumnWidth * IF ( _IsRelativeVariance, 0.2, 1 ) & "' height = '" & _ColumnHeight & "px' fill='" & _ColumnColorFill & "' stroke='" & _ColumnColorOutline & "' opacity='1' style='outline: none;'></rect>"
+					VAR _DataLabelText = --text: data label
+						"<text x='"
+							& IF (
+								_IsRelativeVariance,
+								_xPosition + _ColumnWidth / 2 - 6,
+								_xPosition + _ColumnWidth + 8
+							) & "' y='" & _TextYPosition - 2 & "' font-family='" & _FontFamily & "' font-size='" & _DataLabelFontSize - 1 & "px' text-anchor='middle' alignment-baseline='" & _Baseline & "'   fill='" & _ColorBlack & "'>"
+							& FORMAT ( ROUND ( [@Value], 0 ), "+#,0;-#,0;#,0" ) & "</text>"
+					VAR _PeriodVerticalLine = --period vertical line (for start, middle, end periods only)
+						IF (
+							_Period IN { _PeriodStart, _PeriodMiddle, _PeriodEnd } && _CategoryRank = 1,
+							"<line x1='" & _xPosition + _ColumnWidth * 1.5 & "' x2='" & _xPosition + _ColumnWidth * 1.5 & "' y1='"
+								& _PeriodLineYPosition
+									+ IF ( _IsRelativeVariance, _ColumnWidth * _PinheadWidthMutiplier / 2, 0 ) & "' y2='" & _SVGHeight - _PeriodLabelFontSize - _DataLabelOffset * 2 & "' stroke='" & _ColorBlack & "' stroke-width='" & _LineWidth & "'></line>",
+							""
+						)
+					VAR _PeriodLabel =
+						--period label (for start, middle, end periods only)
+						IF (
+							_Period
+								IN { _PeriodStart, _PeriodMiddle, _PeriodEnd } && _CategoryRank = 1,
+							"<text x='" & _xPosition + _ColumnWidth * 1.5 & "' y='" & _SVGHeight - _PeriodLabelFontSize - _DataLabelOffset & "'  dx='-16' font-family='" & _FontFamily & "' font-size='" & _PeriodLabelFontSize & "px' dominant-baseline='hanging'  fill='" & _ColorPeriodLabel & "'>" & _Period & "</text>",
+							""
+						)
+					VAR _PLVerticalLine =
+						--vertical line between AC and PL periods
+						IF (
+							_Period = _PLPeriodStart,
+							"<line x1='" & _xPosition + _ColumnWidth - _SpaceBetweenColumns/2 & "' x2='" & _xPosition + _ColumnWidth - _SpaceBetweenColumns/2 & "' y1='" & _ZeroY - _DataLabelFontSize * 2 & "' y2='" & _ZeroY + _DataLabelFontSize * 2 & "' stroke='" & _ColorPeriodLabel & "' stroke-width='" & _LineWidth & "'></line>",
+							""
+						)
+					RETURN
+						IF ( _IsRelativeVariance, _PinheadRect, "" ) & _DataRect & _DataLabelText & _PeriodVerticalLine & _PeriodLabel & _PLVerticalLine
+				) //
+			//ADDITIONAL VISUAL ELEMENTS
+			VAR _SVGDeclaration = "data:image/svg+xml;utf8,"
+			VAR _SVGOpen = "<svg xmlns='http://www.w3.org/2000/svg' width='" & _SVGWidth & "' height='" & _SVGHeight & "'>"
+			VAR _svgEnd = "</svg>" //
+			VAR _TextTitle =
+				--text: chart title (country name)
+				"<text x='10' y='10' font-size='" & _TitleFontSize & "px' font-family='" & _FontFamily & "' dominant-baseline='middle' text-anchor='start' fill='" & _ColorBlack & "'>"
+					& _Country & "
+				</text>"
+			VAR _AxisXLine = --axis X domain line (Axis Y = 0)
+			"<line x1='0' x2='" & _SVGWidth & "' y1='" & _ZeroY & "' y2='" & _ZeroY & "' font-family='" & _FontFamily & "' stroke='" & _ColorBlack & "' stroke-width='" & _LineWidth & "'></line>"
+			VAR SVGImageURL = -- combined SVG URL code
+			_svgDeclaration & _SVGOpen & _TextTitle & _DataMarks & _AxisXLine & _svgEnd
+			RETURN
+				SVGImageURL
+
+	annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
+
+	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
