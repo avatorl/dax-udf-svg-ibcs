@@ -16,7 +16,7 @@ Author: Andrzej Leszkiewicz
 
 Interactive Power BI visuals embedded into a web page: https://www.powerofbi.org/powerofbi-ibcs-user-defined-functions/
 
-PBIX files: https://github.com/avatorl/PowerBI-IBCS/blob/main/UDF/ (see the latest available version)
+PBIX files: https://github.com/avatorl/dax-udf-svg-ibcs/tree/main/docs/pbix
 
 ## Usage Instructions
 
