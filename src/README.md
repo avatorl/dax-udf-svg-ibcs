@@ -76,11 +76,19 @@ Recommended to use in Table, Matrix visuals.
 
 ### PowerofBI.IBCS.ColumnChart.WithWaterfall
 
-3-tier chart (timeline): column chart with absolute values, waterfall with relative changes, and relative variance pins
+3-tier chart (timeline): column chart with absolute values, waterfall with relative changes, and relative variance pins.
 
 <img width="660" height="399" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_column_with_waterfall.png" />
 
 Recommended to use in Button Slicer visual.
+
+### PowerofBI.IBCS.ColumnChart.SmallMultiple
+
+Small multiple column charts (absolute and relative variance).
+
+<img width="724" height="499" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_button_slicer_small_multiple_column_abs.png" />
+
+<img width="717" height="497" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_button_slicer_small_multiple_column_rel.png" />
 
 ## License
 
