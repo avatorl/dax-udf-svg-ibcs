@@ -60,7 +60,7 @@ Recommended to use in Table, Matrix visuals.
 
 Column chart to show absolute values (e.g., actual year and previous year) and absolute variance (actual year minus previous year) on a timeline (e.g., months on the X-axis).
 
-<img width="675" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_column_chart_absolute.png" /></br>
+<img width="675" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_column_chart_absolute4.1.png" /></br>
 
 Recommended to use in Matrix, Button Slicer visuals.
 
