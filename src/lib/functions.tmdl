@@ -774,16 +774,16 @@ function 'PowerofBI.IBCS.BarChart.RelativeVariance' =
 /// @returns SVG image
 function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
         (
-            // Actual Value
-            valueAC: SCALAR VAL,
-            // Previous Year Value
-            valuePY: SCALAR VAL,   
-            // Plan (Budget) Value
-            valuePL: SCALAR VAL,     
-            // Forecast Value
-            valueFC: SCALAR VAL,
-            // Column that holds period (Month)
-            periodColumn: ANYREF
+			// Actual Value
+			valueAC: SCALAR EXPR,
+			// Previous Year Value
+			valuePY: SCALAR EXPR,
+			// Plan (Budget) Value
+			valuePL: SCALAR EXPR,
+			// Forecast Value
+			valueFC: SCALAR EXPR,
+			// Column that holds period (Month)
+			periodColumn: ANYREF EXPR
         ) =>
             //=================================================================================================
             // UDF: Returns SVG image for IBCS-styled column chart (Net Sales by Month)
@@ -820,15 +820,9 @@ function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
                 // Current period (Month)
                 SELECTEDVALUE(periodColumn)
             
-            VAR _MaxValue =
-                // Find maximum value among AC, FC, PL, PY across all selected periods (for chart scaling)
-                MAXX(
-                    ADDCOLUMNS(
-                        _AllPeriods,
-                        "@Max", MAX(MAX(valuePY, valuePL), COALESCE(valueAC, valueFC))
-                    ),
-                    [@Max]
-                )
+			VAR _MaxValue =
+				// Find maximum value among AC, FC, PL, PY across all selected periods (for chart scaling)
+		        MAXX ( _AllPeriods, MAXX ( { valuePY, valuePL, valueAC, valueFC }, [Value] ) )
             
             VAR _MainScenario =
                 // Define whether we're in Actuals or Forecast mode
