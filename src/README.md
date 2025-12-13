@@ -32,7 +32,7 @@ or use the Image section of the Format pane (e.g., button slicer).
 
 ## Functions included in the package
 
-The following images are just screenshots. Interactive Power BI visuals created with this package and embedded in a web page using Power BI Embedded are available at https://www.powerofbi.org/powerofbi-ibcs-user-defined-functions/.
+The following images are just screenshots. Interactive Power BI visuals created with this package and embedded in a web page using Power BI Embedded are available at https://powerofbi.org/ibcs/.
 
 ### PowerofBI.IBCS.BarChart.AbsoluteValues
 
