@@ -70,19 +70,19 @@ Recommended to use in Matrix, Button Slicer visuals.
 
 Small pie charts to show the percent of the total for each table or matrix row.
 
+<img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/img-extras-pie-chart-pct-of-total.png" /></br>
+
+Recommended to use in Table, Matrix visuals.
+
 To strictly follow IBCS, pie charts can be disabled to output only the percent data label (in italic font style, which still requires using SVG because it is not supported natively for specific columns only). But I believe this form of pie charts deserves to exist if used together with absolute variance bars.
 
 See Top N + Others Without Any Changes in the Data Model (using PowerofBI.IBCS): https://www.powerofbi.org/2025/12/02/top-n-others-without-any-changes-in-the-data-model/.
-
-<img width="123" height="295" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/img-extras-pie-chart-pct-of-total.png" /></br>
-
-Recommended to use in Table, Matrix visuals.
 
 ### PowerofBI.IBCS.ColumnChart.WithWaterfall
 
 3-tier chart (timeline): column chart with absolute values, waterfall with relative changes, and relative variance pins.
 
-<img width="660" height="399" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/img-column-chart-with-waterfall.png" />
+<img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/img-column-chart-with-waterfall.png" />
 
 Recommended to use in Button Slicer visual.
 
@@ -90,9 +90,11 @@ Recommended to use in Button Slicer visual.
 
 Small multiple column charts (absolute and relative variance).
 
-<img width="724" height="499" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_button_slicer_small_multiple_column_abs.png" />
+<img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_button_slicer_small_multiple_column_abs.png" />
 
-<img width="717" height="497" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_button_slicer_small_multiple_column_rel.png" />
+<img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_button_slicer_small_multiple_column_rel.png" />
+
+Recommended to use in Button Slicer visual.
 
 ## License
 
