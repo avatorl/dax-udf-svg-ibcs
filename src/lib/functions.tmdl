@@ -1644,3 +1644,231 @@ function 'PowerofBI.IBCS.ColumnChart.SmallMultiple' =
 	annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
 
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
+
+/// Creates vertical waterfall (e.g., for P&L)
+/// @returns SVG image
+function 'PowerofBI.IBCS.Waterfall.Vertical' = 
+		( 
+			// chart type: "AC" - black, "PY" - grey, "PL" - outlined
+			chartType: STRING VAL,
+			// table that defines P&L structure
+			tableBase: TABLE VAL,
+			// measure that returns $ amount
+			measureMainValue: ANYREF EXPR,
+			// data label string
+			dataLabel: STRING VAL,
+			// column with "+", "-" or "="
+			columnRowSign: ANYREF EXPR,
+			// column with row index
+			columnIndex: ANYREF EXPR,
+			// max possible value for scaling
+			scaleMax: SCALAR VAL,
+			// level 1 column
+			columnLevel1: ANYREF EXPR,
+			// level 2 column
+			columnLevel2: ANYREF EXPR
+		) =>
+			//=================================================================================================
+			// IBCS-styled vertical waterfall
+			// Read more: https://powerofbi.org/ibcs/
+			// Author: Andrzej Leszkiewicz
+			// Licene: MIT
+			//=================================================================================================
+
+			//-------------------------------------------------------------------------------------------------
+			// SVG layout                                                                                    
+			//-------------------------------------------------------------------------------------------------
+			VAR _SVGWidth      = 400
+			VAR _DrawableWidth = _SVGWidth - 175
+
+			VAR _FontSizePt = 12
+			VAR _Em         = _FontSizePt * 4 / 3
+
+			// ✔ UPDATED COLORS ONLY
+			VAR _ColorAC     = "#000000"   // black for AC
+			VAR _ColorOutline = _ColorAC
+			VAR _ColorPY     = "#c0c0c0"   // light grey for PY
+			VAR _ColorHelper = "#c0c0c0"   // markers & connectors
+
+			VAR _SVG_Style =
+				"<style><![CDATA[
+					text{
+						font-family: Segoe UI;
+						font-size: " & ROUND ( _Em, 1 ) & "px;
+						dominant-baseline: middle;
+						text-anchor: left;
+					}
+				]]></style>"
+
+			//-------------------------------------------------------------------------------------------------
+			// Row level detection                                                                           
+			//-------------------------------------------------------------------------------------------------
+			VAR _IsLevel2 =
+				ISINSCOPE ( columnLevel2 )
+
+			VAR _IsLevel1Subtotal =
+				ISINSCOPE ( columnLevel1 )
+					&& NOT _IsLevel2
+					&& columnRowSign <> "="
+
+			//-------------------------------------------------------------------------------------------------
+			// Running total (ONLY level-2 rows, ordered by index)                                           
+			//-------------------------------------------------------------------------------------------------
+			VAR _CurrentIndex =
+				MIN ( columnIndex )    // works for level-1 & level-2 rows
+
+			VAR _RunningTotal = -- running total of all previos level-2 rows
+				CALCULATE (
+					SUMX (
+						FILTER (
+							tableBase,
+							columnIndex < _CurrentIndex
+								&& NOT ISBLANK ( columnLevel2 )
+								&& columnRowSign <> "="
+						),
+						SWITCH ( columnRowSign, "+", 1, "-", -1, 0 ) * measureMainValue
+					)
+				)
+
+			VAR _Start = -- rectangle begins either on x=0 (for "=" rows) or on x=_RunningTotal
+				IF ( columnRowSign = "=", 0, _RunningTotal )
+
+			//-------------------------------------------------------------------------------------------------
+			// Marker logic (only for level-2 rows)                                                          
+			//  + rows → Level-1 value                                                                       
+			//  - rows → cumulative at start of group                                                        
+			//-------------------------------------------------------------------------------------------------
+			VAR _GroupStartIndex =
+				CALCULATE (
+					MAX ( columnIndex ),
+					REMOVEFILTERS ( columnLevel2 )
+				)
+
+			VAR _GroupStartCumulative = -- ranning total of all previous level-2 rows from the top and to the end of selected level-1 group
+				CALCULATE (
+					SUMX (
+						FILTER (
+							tableBase,
+							columnIndex < _GroupStartIndex
+								&& NOT ISBLANK ( columnLevel2 )
+								&& columnRowSign <> "="
+						),
+						SWITCH ( columnRowSign, "+", 1, "-", -1, 0 ) * measureMainValue
+					)
+				)
+
+			VAR _MarkerValue =
+				IF (
+					_IsLevel2,
+					IF (
+						columnRowSign = "-",
+						_GroupStartCumulative,
+						CALCULATE ( measureMainValue, REMOVEFILTERS ( columnLevel2 ) )
+					)
+				)
+
+			VAR _MarkerX = -- x position of the vertical line
+				IF (
+					_IsLevel2 && NOT ISBLANK ( _MarkerValue ),
+					DIVIDE ( _MarkerValue, scaleMax ) * _DrawableWidth
+				)
+
+			//-------------------------------------------------------------------------------------------------
+			// Change (delta)                                                                                
+			//-------------------------------------------------------------------------------------------------
+			VAR _Change =
+				IF (
+					_IsLevel1Subtotal,
+					SWITCH ( columnRowSign, "+",  measureMainValue, "-", -measureMainValue, 0 ),
+					SWITCH ( columnRowSign, "+",  measureMainValue, "-", -measureMainValue, "=", measureMainValue, 0 )
+				)
+
+			//-------------------------------------------------------------------------------------------------
+			// Geometry                                                                                      
+			//-------------------------------------------------------------------------------------------------
+			VAR _X =
+				DIVIDE (
+					_Start + IF ( _Change < 0, _Change, 0 ),
+					scaleMax
+				) * _DrawableWidth
+
+			VAR _Width =
+				ROUND ( ABS ( _Change ) / scaleMax * _DrawableWidth, 1 )
+
+			//-------------------------------------------------------------------------------------------------
+			// Colors                                                                                        
+			//-------------------------------------------------------------------------------------------------
+			VAR _BarFill =
+				SWITCH (
+					chartType,
+					"AC",        _ColorAC,
+					"PY",        _ColorPY,
+					"PL",        "none"
+				)
+
+			VAR _BarStroke =
+				SWITCH (
+					chartType,
+					"AC",        _ColorAC,
+					"PY",        _ColorPY,
+					"PL",       _ColorOutline
+				)
+
+
+			//-------------------------------------------------------------------------------------------------
+			// Label positioning                                                                             
+			//-------------------------------------------------------------------------------------------------
+			VAR _Anchor = IF ( _Change >= 0, "start", "end" )
+			VAR _DX     = IF ( _Change >= 0, 5, -5 )
+
+			//-------------------------------------------------------------------------------------------------
+			// SVG assembly                                                                                  
+			//-------------------------------------------------------------------------------------------------
+			VAR _SVGHeader = "data:image/svg+xml;utf8,"
+			VAR _SVGOpen   = "<svg xmlns='http://www.w3.org/2000/svg'>"
+			VAR _SVGClose  = "</svg>"
+
+			VAR _SVGMarker =
+				IF (
+					_IsLevel2,
+					"<line title='vertical subtotal line' x1='" & _MarkerX & "' x2='" & _MarkerX &
+					"' y1='0%' y2='100%' stroke='" & _ColorHelper &
+					"' stroke-width='1'></line>",
+					""
+				)
+
+			VAR _SVGBody =
+				"<rect title='main rectangle' x='" & _X &
+					"' y='16%' width='" & _Width &
+					"' height='67%' fill='" & _BarFill &
+					"' stroke='" & _BarStroke &
+					"' stroke-width='1'></rect>"
+
+				& "<line title='small vertical line on the top of the bar' x1='" &
+					_X + IF ( _Change < 0 || columnRowSign = "=", _Width, 0 ) &
+					"' x2='" &
+					_X + IF ( _Change < 0 || columnRowSign = "=", _Width, 0 ) &
+					"' y1='0%' y2='16%' stroke='" & _ColorHelper & "' stroke-width='0.5'></line>"
+
+				& "<line title='small vertical line on the bottom of the bar' x1='" &
+					_X + IF ( _Change > 0, _Width, 0 ) &
+					"' x2='" &
+					_X + IF ( _Change > 0, _Width, 0 ) &
+					"' y1='83%' y2='100%' stroke='" & _ColorHelper & "' stroke-width='0.5'></line>"
+
+				& "<text title='data label' text-anchor='" & _Anchor &
+					"' x='" & IF ( _Change >= 0, _X + _Width, _X ) &
+					"' dx='" & _DX &
+					"' y='55%' font-weight='" &
+					IF ( columnRowSign = "=", "bold", "normal" ) & "'>" &
+					dataLabel & "</text>"
+
+			VAR _SVG =
+				_SVGHeader & _SVGOpen & _SVGMarker & _SVGBody  & _SVG_Style & _SVGClose
+
+			RETURN
+				IF ( columnRowSign IN { "+", "-", "=" }, _SVG )
+
+	annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
+
+	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
