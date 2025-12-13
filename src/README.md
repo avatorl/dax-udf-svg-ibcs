@@ -38,7 +38,7 @@ The following images are just screenshots. Interactive Power BI visuals created 
 
 Bar chart to compare absolute values (e.g., actual year vs. previous year).
 
-<img width="267" height="150" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_absolute_values.png" /></br>
+<img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/img-bar-chart-abs-values.png" /></br>
 
 Recommended to use in Table, Matrix, Button Slicer visuals.
 
@@ -46,7 +46,7 @@ Recommended to use in Table, Matrix, Button Slicer visuals.
 
 Bar chart to compare absolute variance (e.g., actual year over previous year).
 
-<img width="378" height="161" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_absolute_variance.png" /></br>
+<img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/img-bar-chart-abs-variance.png" /></br>
 
 Recommended to use in Table, Matrix visuals.
 
@@ -54,7 +54,7 @@ Recommended to use in Table, Matrix visuals.
 
 Pin chart to compare relative variance (e.g., actual year over previous year, in percent of the previous year).
 
-<img width="290" height="150" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_relative_variance.png" /></br>
+<img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/img-bar-chart-rel-variance.png" /></br>
 
 Recommended to use in Table, Matrix visuals.
 
@@ -62,7 +62,7 @@ Recommended to use in Table, Matrix visuals.
 
 Column chart to show absolute values (e.g., actual year and previous year) and absolute variance (actual year minus previous year) on a timeline (e.g., months on the X-axis).
 
-<img width="675" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_column_chart_absolute4.1.png" /></br>
+<img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/img-column-chart-with-abs-variance.png" /></br>
 
 Recommended to use in Matrix, Button Slicer visuals.
 
@@ -74,7 +74,7 @@ To strictly follow IBCS, pie charts can be disabled to output only the percent d
 
 See Top N + Others Without Any Changes in the Data Model (using PowerofBI.IBCS): https://www.powerofbi.org/2025/12/02/top-n-others-without-any-changes-in-the-data-model/.
 
-<img width="123" height="295" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_pct_of_total_pie.png" /></br>
+<img width="123" height="295" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/img-extras-pie-chart-pct-of-total.png" /></br>
 
 Recommended to use in Table, Matrix visuals.
 
@@ -82,7 +82,7 @@ Recommended to use in Table, Matrix visuals.
 
 3-tier chart (timeline): column chart with absolute values, waterfall with relative changes, and relative variance pins.
 
-<img width="660" height="399" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_column_with_waterfall.png" />
+<img width="660" height="399" alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/img-column-chart-with-waterfall.png" />
 
 Recommended to use in Button Slicer visual.
 
