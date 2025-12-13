@@ -2,7 +2,7 @@
 
 A package of DAX user-defined functions (UDFs) for creating International Business Communication Standards (IBCS)-guided SVG visualizations embedded in core Power BI visuals (matrix, button slicer, and others).
 
-Read more about IBCS and this package, and see interactive Power BI visuals created with this package: https://www.powerofbi.org/ibcs/.
+Read more about IBCS and this package, and see interactive Power BI visuals created with this package: https://powerofbi.org/ibcs/.
 
 Author: [Andrzej Leszkiewicz](https://www.linkedin.com/in/avatorl/)
 
