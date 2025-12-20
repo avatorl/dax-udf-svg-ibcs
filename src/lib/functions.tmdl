@@ -1872,3 +1872,325 @@ function 'PowerofBI.IBCS.Waterfall.Vertical' =
 	annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
 
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
+
+function 'PowerofBI.IBCS.ColumnChart.AbsoluteVarianceWide' =
+		(
+			// main value (solid black)
+			valueAC: SCALAR VAL,
+			// base value (grey)
+			valuePY: SCALAR VAL,
+			// max value (for scaling
+			valueMAX: SCALAR VAL,
+			// axis x label
+			axiXLabel: STRING VAL,
+			// data label
+			dataLabel: STRING VAL
+			
+		) =>
+			//=================================================================================================
+			// IBCS SVG Column – Actual vs Prior Year
+
+			// Visual semantics (IBCS):
+			//   - Base (PY): grey or outlined reference column
+			//   - AC: solid black column
+			//   - FC: optional hatched column (currently disabled)
+			//   - Variance: red/green bar showing AC(+FC) vs PY
+			//   - Data label: value of AC
+			//   - Period label: month abbreviation
+			//=================================================================================================
+
+
+			//=================================================================================================
+			// Required business values
+			//=================================================================================================
+
+			// Actual value (main column)
+			VAR _ValueMain = valueAC
+				
+			// Prior Year value (reference / base)
+			VAR _ValueBase = valuePY
+
+			// Forecast value (second column, disabled for now)
+			VAR _ValueSecond =
+				BLANK ()
+
+			// Total rows are excluded from SVG rendering
+			VAR _IsTotalRow =
+				FALSE ()
+
+			// Month label displayed under the column
+			VAR _PeriodLabel = axiXLabel
+				
+
+			// Maximum value across visible months, used for vertical scaling
+			VAR _MaxValue = valueMAX
+				
+
+			// Inverted color logic (used for unfavorable/good semantics)
+			VAR _InvertedColors =
+				FALSE ()
+
+			// Text shown above / inside the column
+			VAR _DataLabel = dataLabel
+				
+
+			//=================================================================================================
+			// Colors & typography
+			//=================================================================================================
+
+			// Base column style: "grey" (IBCS standard) or "outlined"
+			VAR _BaseType =
+				"grey"
+
+			VAR _ColorBlack = "#404040"
+			VAR _ColorRed   = "#e24b20"
+			VAR _ColorGreen = "#008e96"
+			VAR _ColorGrey  = "#C6C6C6"
+
+			// Base column fill and outline depend on base type
+			VAR _ColorBase =
+				SWITCH (
+					_BaseType,
+					"grey",     _ColorGrey,
+					"outlined", "#FFFFFF"
+				)
+
+			VAR _ColorBaseOutline =
+				SWITCH (
+					_BaseType,
+					"grey",     _ColorGrey,
+					"outlined", _ColorBlack
+				)
+
+			// Font size in points (Power BI-friendly)
+			VAR _FontSizePt =
+				16
+
+			// Font size converted to pixels (SVG uses px)
+			VAR _Em =
+				_FontSizePt * 4 / 3
+
+
+			//=================================================================================================
+			// SVG canvas & layout
+			//=================================================================================================
+
+			// Canvas size (must match visual formatting in Power BI)
+			VAR _SVGHeight = 280
+			VAR _SVGWidth  = 55
+
+			// Extra margin added by Power BI matrix cells (kept explicit)
+			VAR _Margin = 0
+
+			// Logical category width (column + margin)
+			VAR _CategoryWidth =
+				_SVGWidth + _Margin
+
+			// Reserved areas for labels
+			VAR _SVG_Header = _Em * 1.5      // data label
+			VAR _SVG_Footer = _Em * 1.5      // period label
+
+			// Plotting area (available height for columns)
+			VAR _SVG_Body =
+				_SVGHeight - _SVG_Header - _SVG_Footer
+
+			// Column width: 2/3 of category width (IBCS proportion)
+			VAR _ColumnWidth =
+				ROUND ( _CategoryWidth * 2 / 3, 0 )
+
+			// Horizontal shift to offset AC/FC from base column
+			VAR _ColumnShift =
+				ROUND ( _CategoryWidth / 9, 0 )
+
+
+			//=================================================================================================
+			// Column heights & Y positions
+			// (SVG Y=0 is at the top, so higher values mean lower on screen)
+			//=================================================================================================
+
+			// Actual column height (scaled)
+			VAR _HeightAC =
+				ROUND ( DIVIDE ( _ValueMain, _MaxValue ) * _SVG_Body, 0 )
+
+			// Forecast column height (currently zero)
+			VAR _HeightFC =
+				ROUND ( DIVIDE ( _ValueSecond, _MaxValue ) * _SVG_Body, 0 )
+
+			// Base (PY) column height
+			VAR _HeightPL =
+				ROUND ( DIVIDE ( _ValueBase, _MaxValue ) * _SVG_Body, 0 )
+
+			// Y coordinates for each column
+			VAR _YAC =
+				_SVG_Body - _HeightAC + _SVG_Header
+
+			VAR _YFC =
+				_SVG_Body - _HeightFC + _SVG_Header - _HeightAC
+
+			VAR _YPL =
+				_SVG_Body - _HeightPL + _SVG_Header
+
+
+			//=================================================================================================
+			// SVG scaffolding
+			//=================================================================================================
+			VAR _SVG_URLPrefix =
+				"data:image/svg+xml;utf8,"
+
+			VAR _SVG_Open =
+				"<svg xmlns=""http://www.w3.org/2000/svg"" height=""" &
+				_SVGHeight & """ width=""" & _SVGWidth & """>"
+
+			VAR _SVG_Close =
+				"</svg>"
+
+			// Shared SVG text styling
+			VAR _SVG_Style =
+			"
+			<style>
+				text {
+					font-family: Segoe UI, wf_segoe-ui_normal, sans-serif;
+					font-size: " & _Em & "px;
+					dominant-baseline: middle;
+				}
+			</style>"
+
+
+			//=================================================================================================
+			// Optional hatched pattern (Forecast column)
+			//=================================================================================================
+			VAR _SVG_HatchedPattern =
+			"
+			<defs>
+				<pattern id='diagonal-stripe' patternUnits='userSpaceOnUse' width='8' height='8'>
+					<rect width='8' height='8' fill='#FFFFFF'/>
+					<path d='M-2,2 l4,-4 M0,8 l8,-8 M6,10 l4,-4'
+						style='stroke:black; stroke-width:2'/>
+				</pattern>
+			</defs>"
+
+
+			//=================================================================================================
+			// Column shapes
+			//=================================================================================================
+
+			// Base (PY) column
+			VAR _SVG_Base =
+				"<rect x='1' width='" & _ColumnWidth &
+				"' y='" & _YPL & "' height='" & _HeightPL &
+				"' fill='" & _ColorBase &
+				"' stroke='" & _ColorBaseOutline &
+				"' stroke-width='1' />"
+
+			// Actual (AC) column
+			VAR _SVG_AC =
+				"<rect x='" & 1 + _ColumnShift &
+				"' width='" & _ColumnWidth &
+				"' y='" & _YAC & "' height='" & _HeightAC &
+				"' fill='" & _ColorBlack &
+				"' stroke='#000000' stroke-width='1' />"
+
+			// Forecast (FC) column – rendered only if value exists
+			VAR _SVG_FC =
+				IF (
+					ISBLANK ( _ValueSecond ),
+					"",
+					"<rect x='" & 1 + _ColumnShift &
+					"' width='" & _ColumnWidth &
+					"' y='" & _YFC & "' height='" & _HeightFC &
+					"' fill='url(#diagonal-stripe)' stroke='#000000' stroke-width='1' />"
+				)
+
+
+			//=================================================================================================
+			// Variance bar (AC + FC vs PY)
+			//=================================================================================================
+
+			// Combined actual + forecast
+			VAR _ACFC =
+				_ValueMain + _ValueSecond
+
+			// Variance color based on sign and inversion flag
+			VAR _VarianceColor =
+				IF (
+					_ACFC >= _ValueBase,
+					IF ( _InvertedColors, _ColorRed,   _ColorGreen ),
+					IF ( _InvertedColors, _ColorGreen, _ColorRed )
+				)
+
+			// Thin vertical bar indicating variance magnitude
+			VAR _SVG_Variance =
+				"<rect x='" &
+					IF ( _ACFC >= _ValueBase,
+						_ColumnShift,
+						_ColumnWidth - _ColumnShift * 4
+					) + 1 &
+				"' width='" & _ColumnShift * 4 &
+				"' y='" & MIN ( _YFC, _YPL ) &
+				"' height='" & ABS ( _YFC - _YPL ) - 1 &
+				"' fill='" & _VarianceColor &
+				"' stroke='" & _VarianceColor &
+				"' stroke-width='1' />"
+
+
+			//=================================================================================================
+			// Labels
+			//=================================================================================================
+
+			// Data label Y position (inside column if space allows)
+			VAR _LabelY =
+				IF (
+					_ACFC < _ValueBase && _HeightAC + _HeightFC > _Em,
+					_YFC + _Em * 0.7,
+					MIN ( _YFC, _YPL ) - _Em * 0.5
+				)
+
+			VAR _LabelColor =
+				IF (
+					_ACFC < _ValueBase && _HeightAC + _HeightFC > _Em,
+					"#FFFFFF",
+					"#000000"
+				)
+
+			// Actual value label
+			VAR _SVG_DataLabel =
+				"<text text-anchor='middle' x='" &
+					_ColumnWidth / 2 + 7 &
+				"' y='" & _LabelY &
+				"' fill='" & _LabelColor & "'>" &
+				_DataLabel & "</text>"
+
+			// Period (month) label
+			VAR _SVG_PeriodLabel =
+				"<text text-anchor='middle' x='" &
+					1 + _ColumnShift + _ColumnWidth / 2 &
+				"' y='" & _SVG_Header + _SVG_Body + _Em * 0.8 & "'>" &
+				_PeriodLabel & "</text>"
+
+
+			//=================================================================================================
+			// Final SVG assembly
+			//=================================================================================================
+			VAR _SVG =
+				_SVG_URLPrefix &
+				_SVG_Open &
+				IF (
+					_IsTotalRow,
+					"",
+					_SVG_Base &
+					_SVG_AC &
+					_SVG_FC &
+					_SVG_Variance
+				) &
+				_SVG_DataLabel &
+				_SVG_PeriodLabel &
+				_SVG_Style &
+				_SVG_HatchedPattern &
+				_SVG_Close
+
+			RETURN
+				_SVG
+
+	annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
+
+	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
