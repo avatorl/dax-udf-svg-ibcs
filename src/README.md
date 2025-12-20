@@ -66,6 +66,14 @@ Column chart to show absolute values (e.g., actual year and previous year) and a
 
 Recommended to use in Matrix, Button Slicer visuals.
 
+### PowerofBI.IBCS.ColumnChart.AbsoluteVarianceWide
+
+Column chart to show absolute values (e.g., actual year and previous year) and absolute variance (actual year minus previous year) on a timeline (e.g., months on the X-axis). Version with wide variance bars.
+
+<img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/img-column-chart-with-abs-variance-wide.png" /></br>
+
+Recommended to use in Matrix, Button Slicer visuals.
+
 ### PowerofBI.IBCS.Extras.PieChart.PctOfTotal
 
 Small pie charts to show the percent of the total for each table or matrix row.
