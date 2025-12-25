@@ -2206,3 +2206,178 @@ function 'PowerofBI.IBCS.ColumnChart.AbsoluteVarianceWide' =
 	annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
 
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
+
+function 'PowerofBI.IBCS.BarChart.WithAbsoluteVariance' =
+		(
+		    // Main value (Actual)
+		    valueMain: SCALAR EXPR,
+		    // Base value (Previous Period)
+		    valueBase: SCALAR EXPR,
+		    // Dimension used to evaluate visible max
+		    columnDimension: ANYREF EXPR,
+		    // Optional SVG width (0 = default)
+		    imageWidth: SCALAR VAL
+		) =>
+		    // Returns an SVG image with:
+		    //   • PY bar (baseline)
+		    //   • AC bar (actual)
+		    //   • Red/green variance bar (AC vs PY)
+		
+		    VAR _ColorAC    = "#404040"
+		    VAR _ColorPY    = "#C6C6C6"
+		    VAR _ColorRed   = "#E24B20"
+		    VAR _ColorGreen = "#008e96"    
+		        
+		    VAR _FontSizePt = 18
+		    VAR _SVG_Width  = IF ( imageWidth = 0, 300, imageWidth )
+		    VAR _RightPad   = 5
+		    VAR _LabelPad   = 5
+		
+		    -- Font size in pixels (SVG uses px, not pt)
+		    VAR _Em =
+		        ROUND ( _FontSizePt * 4 / 3, 0 )
+		
+		    /* ============================================================================
+		       VALUES
+		       ============================================================================ */
+		
+		    VAR _ValueAC = valueMain
+		    VAR _ValuePY = valueBase
+		
+		    VAR _DeltaPY =
+		        IF (
+		            ISBLANK ( _ValuePY ),
+		            BLANK (),
+		            _ValueAC - _ValuePY
+		        )
+		
+		    -- Max visible value (AC or PY) used for scaling
+		    VAR _MaxValue =
+		        MAX (
+		            MAXX ( ALLSELECTED ( columnDimension ), valueMain ),
+		            MAXX ( ALLSELECTED ( columnDimension ), valueBase )
+		        )
+		
+		    /* ============================================================================
+		       BAR DIMENSIONS
+		       ============================================================================ */
+		
+		    VAR _SVG_ColumnWidth =
+		        _SVG_Width - _RightPad
+		
+		    VAR _WidthPY =
+		        ROUND (
+		            DIVIDE ( _ValuePY, _MaxValue ) * _SVG_ColumnWidth,
+		            0
+		        )
+		
+		    VAR _WidthAC =
+		        ROUND (
+		            DIVIDE ( _ValueAC, _MaxValue ) * _SVG_ColumnWidth,
+		            0
+		        )
+		
+		    -- Variance bar width (difference between AC and PY)
+		    VAR _WidthDeltaPY =
+		        IF (
+		            ISBLANK ( _ValuePY ),
+		            0,
+		            ABS ( _WidthAC - _WidthPY ) - 1
+		        )
+		
+		    /* ============================================================================
+		       VARIANCE BAR POSITION & STYLING
+		       ============================================================================ */
+		
+		    -- Variance bar X position
+		    VAR _X =
+		        SWITCH (
+		            TRUE (),
+		            _DeltaPY >= 0, _WidthPY,
+		            _WidthAC
+		        ) + 1
+		
+		    -- Variance bar Y position
+		    VAR _Y =
+		        SWITCH (
+		            TRUE (),
+		            _DeltaPY >= 0, ROUNDUP ( _Em * 0.25, 0 ),
+		            ROUNDUP ( _Em * 0.75, 0 )
+		        )
+		
+		    -- Variance bar color
+		    VAR _BarColor =
+		        IF ( _DeltaPY > 0, _ColorGreen, _ColorRed )
+		
+		    -- Label positioning
+		    VAR _LabelOffsetX =
+		        IF ( _DeltaPY = 0, _LabelPad, SIGN ( _DeltaPY ) * _LabelPad )
+		
+		    VAR _TextAnchor =
+		        IF ( _DeltaPY >= 0, "start", "end" )
+		
+		    VAR _TextColor =
+		        IF ( _DeltaPY >= 0, "black", "white" )
+		
+		    /* ============================================================================
+		       SVG ASSEMBLY
+		       ============================================================================ */
+		
+		    VAR _SVG =
+		        "data:image/svg+xml;utf8," &
+		    "
+		    <svg xmlns='http://www.w3.org/2000/svg'>
+		
+		      <!-- PY bar -->
+		      <rect
+		          x='0'
+		          y='0'
+		          width='" & _WidthPY & "'
+		          height='" & _Em & "'
+		          fill='" & _ColorPY & "'
+		          stroke='" & _ColorPY & "' />
+		
+		      <!-- AC bar -->
+		      <rect
+		          x='0'
+		          y='" & ROUND ( _Em * 0.25, 0 ) & "'
+		          width='" & _WidthAC & "'
+		          height='" & _Em & "'
+		          fill='" & _ColorAC & "'
+		          stroke='" & _ColorAC & "' />
+		
+		      <!-- Variance bar -->
+		      <rect
+		          x='" & _X & "'
+		          y='" & _Y & "'
+		          width='" & _WidthDeltaPY & "'
+		          height='" & ROUND ( _Em * 0.25, 0 ) & "'
+		          fill='" & _BarColor & "'
+		          stroke='" & _BarColor & "' />
+		
+		      <!-- AC label -->
+		      <text
+		          x='" & _WidthAC & "'
+		          dx='" & _LabelOffsetX & "'
+		          y='" & _Em * 0.75 - 2 & "'
+		          text-anchor='" & _TextAnchor & "'
+		          fill='" & _TextColor & "'>
+		          " & _ValueAC & "
+		      </text>
+		
+		      <style><![CDATA[
+		        text {
+		            font-family: Segoe UI;
+		            font-size: " & _Em & "px;
+		            dominant-baseline: central;
+		        }
+		      ]]></style>
+		
+		    </svg>"
+		
+		    RETURN
+		        _SVG
+
+	annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
+
+	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
