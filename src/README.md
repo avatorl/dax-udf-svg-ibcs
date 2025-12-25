@@ -58,6 +58,14 @@ Pin chart to compare relative variance (e.g., actual year over previous year, in
 
 Recommended to use in Table, Matrix visuals.
 
+### PowerofBI.IBCS.BarChart.WithAbsoluteVariance
+
+Bar chart to compare absolute values (e.g., actual year vs. previous year), with absolute variance bars.
+
+<img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_button_slicer_bar_chart.png" /></br>
+
+Recommended to use in Button Slicer.
+
 ### PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance
 
 Column chart to show absolute values (e.g., actual year and previous year) and absolute variance (actual year minus previous year) on a timeline (e.g., months on the X-axis).
