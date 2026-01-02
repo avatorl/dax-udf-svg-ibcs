@@ -1,15 +1,25 @@
 /// Creates a bar chart (SVG-image) that compares absolute values (actual value vs base value)
 /// @param {scalar} valueMain
+/// usage example: [AC] (actual value, e.g., 5000)
 /// @param {scalar} valueSecond
+/// usage example: [FC] (secondary/forecast value, e.g., 4800)
 /// @param {scalar} valueBase
+/// usage example: [PY] (previous year/budget value, e.g., 4500)
 /// @param {string} baseType
+/// usage example: "grey" or "outlined" (determines base bar styling)
 /// @param {string} dataLabel
+/// usage example: FORMAT ( [AC], "#,0" ) (displayed label next to bars)
 /// @param {boolean} isTotalRow
+/// usage example: NOT ( ISINSCOPE ( 'Category'[Category] ) ) (indicates total row)
 /// @param {boolean} chartInTotalRow
+/// usage example: FALSE () (whether to show chart in total rows)
 /// @param {scalar} valueMax
+/// usage example: MAXX ( ALLSELECTED ( 'Category' ), [AC] + [FC] ) (max value for scaling)
 /// @param {int64} imageWidth
+/// usage example: 0 (default width 350px; use >0 for custom width in px)
 /// @param {int64} imageRightPad
-/// @returns SVG image
+/// usage example: 0 (default padding 190px; use >0 for custom right padding in px)
+/// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.BarChart.AbsoluteValues' =
         (
             // Main value (actual)
@@ -261,16 +271,26 @@ function 'PowerofBI.IBCS.BarChart.AbsoluteValues' =
 
     annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
-/// Creates a bar chart that shows the absolute variance between two values
+/// Creates a diverging bar chart that compares absolute variance between two values (e.g., actual vs previous year)
 /// @param {scalar} valueMain
+/// usage example: [AC] - [PY] (variance value, e.g., 1500)
 /// @param {string} dataLabel
+/// usage example: FORMAT ( [AC] - [PY], "+#,0;-#,0;=" ) (formatted variance label, e.g., "+1,500")
 /// @param {boolean} isTotalRow
+/// usage example: NOT ( ISINSCOPE ( 'Payment Mode'[Payment Mode] ) ) (indicates if row is a total row)
 /// @param {scalar} valueMax
+/// usage example: CALCULATE ( MAXX ( ALLSELECTED ( 'Payment Mode' ), [AC] - [PY] ), ALLSELECTED ( 'Payment Mode' ) ) (maximum variance across ALLSELECTED)
 /// @param {scalar} valueMin
+/// usage example: CALCULATE ( MINX ( ALLSELECTED ( 'Payment Mode' ), [AC] - [PY] ), ALLSELECTED ( 'Payment Mode' ) ) (minimum variance across ALLSELECTED)
 /// @param {scalar} valueScale
+/// usage example: MAXX ( ALLSELECTED ( 'Payment Mode' ), MAX ( [AC], [PY] ) ) (maximum value for scaling, can be max(AC, PY))
 /// @param {int64} imageWidth
+/// usage example: 0 (default width 350px; use >0 for custom width in px)
 /// @param {int64} imageRightPad
-/// @returns SVG image
+/// usage example: 0 (default right padding 90px; use >0 for custom padding in px)
+/// @param {boolean} invertColors
+/// usage example: FALSE () (when TRUE, swaps green/red colors)
+/// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.BarChart.AbsoluteVariance' =
 		(
 			// Absolute variance = actual value – base (previous year or budget) value
@@ -510,10 +530,14 @@ function 'PowerofBI.IBCS.BarChart.AbsoluteVariance' =
 
 /// Creates a bar chart that shows the relative (%) variance between two values
 /// @param {scalar} valueMain
+/// usage example: ( [AC] - [PY] ) / [PY] (relative variance as decimal, e.g., 0.15 for +15%)
 /// @param {string} dataLabel
+/// usage example: FORMAT ( ( [AC] - [PY] ) / [PY], "+0.0%;-0.0%;=" ) (formatted percentage label, e.g., "+15.0%")
 /// @param {boolean} isTotalRow
+/// usage example: NOT ( ISINSCOPE ( 'Category'[Category] ) ) (indicates if row is a total row)
 /// @param {int64} imageWidth
-/// @returns SVG image
+/// usage example: 0 (default width 350px; use >0 for custom width in px)
+/// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.BarChart.RelativeVariance' =
         (
             // Actual value (relative variance %)
@@ -770,11 +794,16 @@ function 'PowerofBI.IBCS.BarChart.RelativeVariance' =
 
 /// Creates a column chart that shows actual values, previous period values, plan, forecast and variance bars
 /// @param {scalar} valueAC
+/// usage example: [AC] (actual value, e.g., 5000)
 /// @param {scalar} valuePY
+/// usage example: [PY] (previous year value, e.g., 4500)
 /// @param {scalar} valuePL
+/// usage example: [PL] (plan/budget value, e.g., 4800)
 /// @param {scalar} valueFC
+/// usage example: [FC] (forecast value, e.g., 5200)
 /// @param periodColumn
-/// @returns SVG image
+/// usage example: 'Date'[Month] (column that holds period for X-axis)
+/// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
         (
 			// Actual Value
@@ -956,13 +985,20 @@ function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
     annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
 /// Generates an SVG image containing a pie chart and a data label representing the percentage of a value relative to the total (e.g., "21%")
+/// Creates a pie/donut chart showing percentage of total
 /// @param {double} valueMain
+/// usage example: [AC] / SUM ( [AC] ) (percentage as decimal, e.g., 0.25 for 25%)
 /// @param {string} dataLabel
+/// usage example: FORMAT ( [AC] / SUM ( [AC] ), "0.0%" ) (formatted percentage label, e.g., "25.0%")
 /// @param {boolean} isTotalRow
+/// usage example: NOT ( ISINSCOPE ( 'Category'[Category] ) ) (indicates if row is a total row)
 /// @param {boolean} showPieChart
+/// usage example: TRUE () (toggle to display the pie chart or not)
 /// @param {int64} fontSize
+/// usage example: 14 (font size in points for data label, e.g., 14pt)
 /// @param {int64} imageWidth
-/// @returns SVG image
+/// usage example: 0 (default width 350px; use >0 for custom width in px)
+/// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.Extras.PieChart.PctOfTotal' =
 		(
 			// Main value as a decimal fraction (e.g., 0.21 for 21%)
@@ -1110,16 +1146,26 @@ function 'PowerofBI.IBCS.Extras.PieChart.PctOfTotal' =
 
 /// Creates a waterfall chart showing monthly actual or forecast values vs previous year, including cumulative delta and variance pins for YTD or full-year comparisons
 /// @param {string} pType
+/// usage example: "AC" or "FC" (type of current column, actual or forecast)
 /// @param {int64} pMonth
+/// usage example: 5 (selected month number 1–12 for X-axis label)
 /// @param {scalar} pValuePY
+/// usage example: [PY] (monthly previous year value, e.g., 4500)
 /// @param {scalar} pValueACFC
+/// usage example: [AC] or [FC] (monthly actual or forecast value, e.g., 5000)
 /// @param {scalar} pDeltaPYCumulative
+/// usage example: CALCULATE ( SUM ( [DeltaPY] ), DATESBETWEEN ( ... ) ) (cumulative delta vs PY up to prior month for waterfall)
 /// @param {scalar} pPY_Total
+/// usage example: CALCULATE ( SUM ( [PY] ), ALLSELECTED ( 'Date'[Year] ) ) (total PY for full-year comparison)
 /// @param {scalar} pAC_Total
+/// usage example: CALCULATE ( SUM ( [AC] ), ALLSELECTED ( 'Date'[Year] ) ) (total AC for full-year comparison)
 /// @param {scalar} pFC_Total
+/// usage example: CALCULATE ( SUM ( [FC] ), ALLSELECTED ( 'Date'[Year] ) ) (total FC for full-year comparison)
 /// @param {scalar} pMaxValue
+/// usage example: MAXX ( ALLSELECTED ( 'Date'[Month] ), MAX ( [AC], [PY], [FC] ) ) (maximum value for scaling)
 /// @param {int64} pImageHeight
-/// @returns SVG image
+/// usage example: 0 (default height 80px; use >0 for custom height in px)
+/// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.ColumnChart.WithWaterfall' =
 		(
 		    // Type of current column (typically "AC" or "FC")
@@ -1434,7 +1480,17 @@ function 'PowerofBI.IBCS.ColumnChart.WithWaterfall' =
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
 /// Creates absolute and relative variance small multiple column charts
-/// @returns SVG image
+/// @param {string} varianceType
+/// usage example: "Absolute" or "Relative" (type of variance chart to generate)
+/// @param columnCategory
+/// usage example: 'Product'[Product Category] (column with a list of categories for individual cards)
+/// @param columnPeriod
+/// usage example: 'Date'[Month] (column with a list of periods for X-axis values)
+/// @param measureDeltaAbsolute
+/// usage example: [DeltaAbsolute] (absolute variance measure, e.g., 500)
+/// @param measureDeltaPct
+/// usage example: [DeltaPct] (relative variance measure as whole number, e.g., 15 for +15%)
+/// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.ColumnChart.SmallMultiple' =
 		(
 			// VARiance type: ["Absolute", "Relative"]
@@ -1658,7 +1714,25 @@ function 'PowerofBI.IBCS.ColumnChart.SmallMultiple' =
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
 /// Creates vertical waterfall (e.g., for P&L)
-/// @returns SVG image
+/// @param {string} chartType
+/// usage example: "AC", "PY", or "PL" (chart rendering type: black for AC, grey for PY, outlined for PL)
+/// @param {table} tableBase
+/// usage example: 'P&L Structure' (table that defines the P&L structure)
+/// @param {anyref} measureMainValue
+/// usage example: [Amount] (measure that returns monetary amount)
+/// @param {string} dataLabel
+/// usage example: FORMAT ( [Amount], "$#,0" ) (formatted data label string, e.g., "$1,500")
+/// @param {anyref} columnRowSign
+/// usage example: 'P&L'[Sign] (column with "+", "-", or "=" indicating row behavior)
+/// @param {anyref} columnIndex
+/// usage example: 'P&L'[Row Index] (column with row index for proper ordering)
+/// @param {scalar} scaleMax
+/// usage example: MAXX ( ALLSELECTED ( 'P&L'[Line Item] ), ABS ( [Amount] ) ) (maximum absolute value for scaling)
+/// @param {anyref} columnLevel1
+/// usage example: 'P&L'[Category] (first hierarchical level, e.g., Income, Expenses)
+/// @param {anyref} columnLevel2
+/// usage example: 'P&L'[SubCategory] (second hierarchical level for nested hierarchy)
+/// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.Waterfall.Vertical' = 
 		( 
 			// chart type: "AC" - black, "PY" - grey, "PL" - outlined
@@ -1885,6 +1959,18 @@ function 'PowerofBI.IBCS.Waterfall.Vertical' =
 
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
+/// Creates wide column chart showing absolute values and variance
+/// @param {scalar} valueAC
+/// usage example: [AC] (actual value, solid black, e.g., 5000)
+/// @param {scalar} valuePY
+/// usage example: [PY] (previous year/base value, grey, e.g., 4500)
+/// @param {scalar} valueMAX
+/// usage example: MAXX ( ALLSELECTED ( 'Category' ), MAX ( [AC], [PY] ) ) (maximum value for scaling)
+/// @param {string} axiXLabel
+/// usage example: 'Date'[Month Name] (axis X label, e.g., "January")
+/// @param {string} dataLabel
+/// usage example: FORMAT ( [AC] - [PY], "+#,0;-#,0;=" ) (data label, e.g., "+500")
+/// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.ColumnChart.AbsoluteVarianceWide' =
 		(
 			// main value (solid black)
@@ -2207,6 +2293,16 @@ function 'PowerofBI.IBCS.ColumnChart.AbsoluteVarianceWide' =
 
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
+/// Creates a bar chart with absolute and relative variance visualization
+/// @param {scalar} valueMain
+/// usage example: [AC] (actual value, solid black bar, e.g., 5000)
+/// @param {scalar} valueBase
+/// usage example: [PY] (previous period/base value, grey bar, e.g., 4500)
+/// @param {anyref} columnDimension
+/// usage example: 'Category'[Category] (dimension column used to evaluate visible maximum for scaling)
+/// @param {scalar} imageWidth
+/// usage example: 0 (default width 350px; use >0 for custom width in px)
+/// @returns SVG image (data:image/svg+xml URI for embedding in table cells, includes PY bar, AC bar, and red/green variance bar)
 function 'PowerofBI.IBCS.BarChart.WithAbsoluteVariance' =
 		(
 		    // Main value (Actual)
