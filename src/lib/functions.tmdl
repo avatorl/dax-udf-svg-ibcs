@@ -1177,6 +1177,240 @@ function 'PowerofBI.IBCS.Extras.PieChart.PctOfTotal' =
 
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
+/// Creates a stacked column SVG showing product-group contributions inside a single category column
+/// @param {anyref} measureSalesByProductGroup
+/// usage example: [Sales by Product Group] (measure that returns sales for product group)
+/// @param columnProductGroup
+/// usage example: 'Product Group'[Product Group] (column containing product group values)
+/// @param columnProductGroupDisconnected
+/// usage example: 'Product Group (disconnected)'[Product Group] (disconnected slicer column)
+/// @param columnPeriod
+/// usage example: 'Date'[Start of Month] (period column used for axis/label)
+/// @param {int64} imageWidth
+/// usage example: 0 (default width 60px; use >0 for custom width in px)
+/// @param {int64} imageHeight
+/// usage example: 0 (default height 320px; use >0 for custom height in px)
+/// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
+function 'PowerofBI.IBCS.ColumnChart.Stacked' =
+	(
+		measureSalesByProductGroup: ANYREF EXPR,
+		columnProductGroup: ANYREF EXPR,
+		columnProductGroupDisconnected: ANYREF EXPR,
+		columnPeriod: ANYREF EXPR,
+		imageWidth: INT64 VAL,
+		imageHeight: INT64 VAL
+	) =>
+		//=================================================================================================
+		// Project: UDF for generating IBCS-styled charts (as SVG images)
+		//
+		// The visualization design adheres to IBCS recommendations:
+		//   https://www.ibcs.com/ibcs-standards-1-2/
+		//
+		// IMPORTANT:
+		//   This visual is NOT produced, certified, authorized, or endorsed by IBCS®
+		//   https://www.ibcs.com/
+		//
+		// The generated charts can be embedded inside Power BI visuals:
+		//   - Table
+		//   - Matrix
+		//   - New Card visuals
+		//
+		//=================================================================================================
+		// Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
+		// More info: https://powerofbi.org/
+		// LinkedIn: https://www.linkedin.com/in/avatorl/
+		// Email:    andrzej@powerofbi.org
+		//=================================================================================================
+		// License: MIT License (free and permissive)
+		// https://en.wikipedia.org/wiki/MIT_License
+		//=================================================================================================
+		// Description:
+		//   This UDF generates a compact stacked column SVG that visualizes contributions
+		//   of product groups (top N + Other) inside a single period column.
+		//
+		//   Features include:
+		//     • Top-N ranking with an "Other" bucket
+		//     • Highlight of a selected disconnected product group (index forced to 0)
+		//     • Scales heights using ALLSELECTED across periods for consistent sizing
+		//     • Labels placed inside segments when space allows and group labels for first period
+		//
+		//=================================================================================================
+
+		VAR _GreyTable =
+			DATATABLE (
+				"@Idx", INTEGER,
+				"@Color", STRING,
+				"@ColorText", STRING,
+				{
+					{ 0, "#666688", "#FFFFFF" },
+					{ 1, "#606060", "#FFFFFF" },
+					{ 2, "#808080", "#FFFFFF" },
+					{ 3, "#A0A0A0", "#FFFFFF" },
+					{ 4, "#C0C0C0", "#333333" }
+				}
+			)
+
+		/* -------------------------------------------------------------------------- */
+		/* Context & period helpers                                                    */
+		/* -------------------------------------------------------------------------- */
+
+		VAR _SelectedGroup = SELECTEDVALUE ( columnProductGroupDisconnected )
+
+		VAR _HasSelectedGroup = NOT ISBLANK ( _SelectedGroup )
+
+		VAR _FirstPeriod =
+			MINX ( ALLSELECTED ( columnPeriod ), columnPeriod )
+
+		VAR _IsFirstPeriod =
+			ISINSCOPE ( columnPeriod ) && SELECTEDVALUE ( columnPeriod ) = _FirstPeriod
+
+		VAR _PeriodLabel = FORMAT ( SELECTEDVALUE ( columnPeriod ), "mmm" )
+
+		/* -------------------------------------------------------------------------- */
+		/* Product group totals                                                        */
+		/* -------------------------------------------------------------------------- */
+
+		VAR _ProductGroupTotals =
+			SUMMARIZECOLUMNS (
+				columnProductGroup,
+				"@TotalSales",
+					CALCULATE ( measureSalesByProductGroup, REMOVEFILTERS ( columnPeriod ) ),
+				"@ThisPeriodSales",
+					measureSalesByProductGroup
+			)
+
+		VAR _MaxValue =
+			VAR Months = ALLSELECTED ( columnPeriod )
+			RETURN MAXX ( Months, measureSalesByProductGroup )
+
+		VAR _TotalValue = SUMX ( _ProductGroupTotals, [@ThisPeriodSales] )
+
+		/* -------------------------------------------------------------------------- */
+		/* SVG layout constants                                                        */
+		/* -------------------------------------------------------------------------- */
+
+		VAR _FontSizePt = 12
+		VAR _Em = _FontSizePt * 4 / 3
+
+		VAR _SVGHeight = IF ( imageHeight > 0, imageHeight, 320 )
+		VAR _SVGWidth  = IF ( imageWidth > 0, imageWidth, 60 )
+
+		VAR _SVG_Header = _Em * 1.2
+		VAR _SVG_Footer = _Em * 1.2
+		VAR _SVG_Body   = _SVGHeight - _SVG_Header - _SVG_Footer
+
+		VAR _ColumnWidth = ROUND ( _SVGWidth * 2 / 3, 0 )
+		VAR _X = 1
+
+		VAR _BarHeight =
+			MAX ( 0, MIN ( _SVG_Body, INT ( DIVIDE ( _TotalValue, _MaxValue ) * _SVG_Body ) ) )
+
+		VAR _BarBottom = _SVG_Header + _SVG_Body
+		VAR _BarTop    = _BarBottom - _BarHeight
+
+		VAR _HasData = _TotalValue <> 0 && _MaxValue <> 0 && _BarHeight > 0
+
+		/* -------------------------------------------------------------------------- */
+		/* Ranking and "Other" bucket                                                  */
+		/* -------------------------------------------------------------------------- */
+
+		VAR RankedBase =
+			ADDCOLUMNS ( _ProductGroupTotals, "@Rank", RANKX ( _ProductGroupTotals, [@TotalSales], , DESC, DENSE ) )
+
+		VAR Limit = 3
+
+		VAR _RankedWithOther =
+			UNION (
+				SELECTCOLUMNS (
+					FILTER ( RankedBase, [@Rank] <= Limit ),
+					"Product Group", columnProductGroup,
+					"@Sales",        [@ThisPeriodSales],
+					"@Rank",         [@Rank]
+				),
+				SELECTCOLUMNS (
+					ROW (
+						"Product Group", "Other",
+						"@Sales",
+							SUMX ( FILTER ( RankedBase, [@Rank] > Limit ), [@ThisPeriodSales] )
+					),
+					"Product Group", [ Product Group ],
+					"@Sales",        [ @Sales ],
+					"@Rank",         Limit + 1
+				)
+			)
+
+		VAR _LargestGroup = MAXX ( TOPN ( 1, _RankedWithOther, [@Rank], ASC ), columnProductGroup )
+
+		VAR _HighlightGroup =
+			IF ( _HasSelectedGroup && CONTAINS ( _RankedWithOther, columnProductGroup, _SelectedGroup ), _SelectedGroup, _LargestGroup )
+
+		VAR _RankedWithOther_Indexed =
+			ADDCOLUMNS ( _RankedWithOther, "@Idx", IF ( columnProductGroup = _HighlightGroup, 0, [@Rank] ) )
+
+		VAR TotalSegments = COUNTROWS ( _RankedWithOther )
+
+		/* ============================== SVG BUILD ================================= */
+
+		VAR GeneratedTable =
+			GENERATE (
+				_RankedWithOther_Indexed,
+				VAR _Idx   = [@Idx]
+				VAR _Sales = [@Sales]
+				VAR _Group = columnProductGroup
+
+				VAR _Color = MAXX ( FILTER ( _GreyTable, [@Idx] = _Idx ), [@Color] )
+
+				VAR _ColorText = MAXX ( FILTER ( _GreyTable, [@Idx] = _Idx ), [@ColorText] )
+
+				VAR _OffsetBelowPx =
+					SUMX ( FILTER ( _RankedWithOther_Indexed, [@Idx] < _Idx ), INT ( DIVIDE ( [@Sales], _TotalValue ) * _BarHeight ) )
+
+				VAR _LastIdx = MAXX ( _RankedWithOther_Indexed, [@Idx] )
+
+				VAR _HeightPx = IF ( _Idx = _LastIdx, _BarHeight - _OffsetBelowPx, INT ( DIVIDE ( _Sales, _TotalValue ) * _BarHeight ) )
+
+				VAR _Y = _BarBottom - _OffsetBelowPx - _HeightPx
+
+				VAR _FontSize = IF ( _HeightPx >= 10, MIN ( _HeightPx - 1, 12 ), 0 )
+
+				VAR _GroupEscaped =
+					SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE ( columnProductGroup, "&", "&amp;" ), "<", "&lt;" ), ">", "&gt;" ), '"', "&quot;" ), "'", "&apos;" )
+
+				RETURN
+					ROW (
+						"RectSVG",
+							IF ( _HeightPx <= 0, "", "<rect x='" & _X & "' y='" & _Y & "' width='" & _ColumnWidth & "' height='" & _HeightPx & "' fill='" & _Color & "' stroke='white' />" ),
+						"TextSVG",
+							IF (
+								_HeightPx <= 0,
+								"",
+								IF ( _IsFirstPeriod, "<text text-anchor='left' x='5' y='" & _Y + _FontSize * 0.8 & "' font-size='" & _FontSize * 0.7 & "'>" & _GroupEscaped & "</text>", "" ) &
+								"<text text-anchor='middle' x='" & _ColumnWidth / 2 & "' y='" & _Y + _HeightPx / 2 & "' fill='" & _ColorText & "' font-size='" & _FontSize & "'>" & FORMAT ( _Sales / 1E3, "#,0.0" ) & "</text>"
+							)
+					)
+			)
+
+		VAR _Rects = CONCATENATEX ( GeneratedTable, [RectSVG], "", [@Idx], ASC )
+		VAR _Texts = CONCATENATEX ( GeneratedTable, [TextSVG], "", [@Idx], ASC )
+		VAR _ProductRects = IF ( NOT _HasData, "", _Rects & _Texts )
+
+		/* -------------------------------------------------------------------------- */
+		/* Final SVG                                                                   */
+		/* -------------------------------------------------------------------------- */
+
+		VAR _SVG =
+			"data:image/svg+xml;utf8," &
+			"<svg xmlns='http://www.w3.org/2000/svg' height='" & _SVGHeight & "' width='" & _SVGWidth & "'>" &
+			_ProductRects &
+			"<text text-anchor='middle' x='" & _ColumnWidth / 2 & "' y='" & _BarTop - _Em * 0.3 & "' font-size='16' font-weight='bold'>" & FORMAT ( _TotalValue / 1E3, "#,0.0" ) & "</text>" &
+			"<text text-anchor='middle' x='" & _ColumnWidth / 2 & "' y='" & _SVG_Header + _SVG_Body + _Em * 0.8 & "'>" & _PeriodLabel & "</text></svg>"
+
+		RETURN _SVG
+
+	annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
+
+	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
+
 /// Creates a waterfall chart showing monthly actual or forecast values vs previous year, including cumulative delta and variance pins for YTD or full-year comparisons
 /// @param {string} pType
 /// usage example: "AC" or "FC" (type of current column, actual or forecast)
