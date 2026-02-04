@@ -63,12 +63,14 @@ function 'PowerofBI.IBCS.BarChart.AbsoluteValues' =
             //   This UDF generates an SVG image featuring a horizontal bar chart to represent absolute values.
             //
             //   Features include:
+            //     • Y-axis line (vertical black line at left edge)
             //     • Base bar: grey (Previous Year — PY) or outlined (Budget — BU)
             //     • Stacked bars for main and secondary values:
             //           - Main value (AC, actuals): solid black bar
             //           - Secondary value (FC, forecast): hatched diagonal pattern
             //     • Data labels placed to the right of the bar(s)
-            //     • Reference triangles for base values: outlined (BU) or grey (PY)
+            //     • Embedded sort key for stable ordering in Power BI visuals
+            //     • Total row mode: simplified label only (no chart) when chartInTotalRow is FALSE
             //=================================================================================================
 
             //=================================================================================================
@@ -1044,10 +1046,12 @@ function 'PowerofBI.IBCS.Extras.PieChart.PctOfTotal' =
 		    //   This UDF generates a pie chart with a data label showing percentage of total.
 		    //
 		    //   Features include:
-		    //     • Optional pie rendering (label-only mode supported)
-		    //     • Adjustable font size drives both label sizing and pie radius
-		    //     • Background segment shows remainder; main fill represents the selected share
-		    //     • Embedded sort key to keep visuals ordered by value
+		    //     • Optional pie chart rendering (toggle via showPieChart parameter)
+		    //     • Pie chart with grey background segment and dark fill for the selected share
+		    //     • Full circle rendering when percentage equals 100%
+		    //     • Data label in italic style, positioned to the left of the pie
+		    //     • Adjustable font size controls both label sizing and pie radius
+		    //     • Embedded sort key for stable ordering in Power BI visuals
 		    //=================================================================================================
 			// Debug mode: 1 = on, 0 = off. Adds a colored box for layout visualization.
 			VAR _DEBUG = 0
@@ -1202,10 +1206,14 @@ function 'PowerofBI.IBCS.ColumnChart.Stacked' =
             //   of product groups (top N + Other) inside a single period column.
             //
             //   Features include:
-            //     • Top-N ranking with an "Other" bucket
-            //     • Highlight of a selected disconnected product group (index forced to 0)
+            //     • Stacked column segments with 5-shade grey color palette
+            //     • Top-N ranking (default 3) with an "Other" bucket for remaining groups
+            //     • Highlight of selected disconnected product group (uses distinct blue-grey color)
+            //     • Value labels inside segments (adaptive font size based on segment height)
+            //     • Group name labels on first period column only
+            //     • Total value label (bold) positioned above the column
+            //     • Period label (month abbreviation) below the column
             //     • Scales heights using ALLSELECTED across periods for consistent sizing
-            //     • Labels placed inside segments when space allows and group labels for first period
             //=================================================================================================
 
 			// Color palette for ranked segments (Idx 0 is the highlighted group)
@@ -1487,10 +1495,16 @@ function 'PowerofBI.IBCS.ColumnChart.WithWaterfall' =
 		    //   This UDF composes a three-tier IBCS visual: monthly columns, an absolute-variance waterfall, and relative-variance pins.
 		    //
 		    //   Features include:
-		    //     • AC/FC columns with PY references and year-total context
-		    //     • Waterfall bars for monthly ΔPY with cumulative connectors and total variance marker
-		    //     • Relative variance pin charts for monthly and total ΔPY%
-		    //     • Hatched patterns for forecast values and color-coded variance bars
+		    //     • X-axis line with month letter labels (J, F, M, etc.)
+		    //     • Monthly columns: AC (solid black) or FC (hatched) with PY (grey) reference bars
+		    //     • Value labels above each monthly column
+		    //     • Waterfall bars for monthly ΔPY: green (positive) or red (negative), hatched for FC
+		    //     • Cumulative connector lines between waterfall bars
+		    //     • PY horizontal reference line spanning all months
+		    //     • Year-total variance marker with value label
+		    //     • Relative variance axis (grey baseline) with ΔPY% label
+		    //     • Monthly variance pins with black/hatched pin heads
+		    //     • Total relative variance pin for year-end comparison
 		    //=================================================================================================
 		    // ==========================================
 		    // SECTION: PARAM BINDINGS (no external refs)
@@ -2094,10 +2108,14 @@ function 'PowerofBI.IBCS.Waterfall.Vertical' =
 			//   This UDF renders a vertical waterfall for hierarchical P&L structures (AC/PY/PL styling).
 			//
 			//   Features include:
-			//     • Handles level-1 subtotals and level-2 detail rows with running totals
-			//     • ChartType parameter selects AC (black), PY (grey), or PL (outlined) semantics
-			//     • Optional subtotal markers show group starts and level totals
-			//     • Labels anchored relative to bar direction for readable P&L layouts
+			//     • Waterfall bars with running total positioning (level-2 detail rows)
+			//     • ChartType styling: AC (solid black), PY (grey fill), PL (outlined white)
+			//     • Vertical connector lines at top and bottom of each bar
+			//     • Subtotal marker lines for level-1 group boundaries (grey vertical lines)
+			//     • Data labels anchored relative to bar direction (start/end alignment)
+			//     • Bold labels for subtotal rows (= sign)
+			//     • Handles hierarchical P&L with level-1 subtotals and level-2 detail rows
+			//     • Signed value logic: + rows add, - rows subtract from running total
 			//=================================================================================================
 
 			//-------------------------------------------------------------------------------------------------
@@ -2683,12 +2701,14 @@ function 'PowerofBI.IBCS.BarChart.WithAbsoluteVariance' =
 		    //   This UDF outputs a compact horizontal bar chart with AC vs PY and a variance marker.
 		    //
 		    //   Features include:
-		    //     • PY baseline bar with AC overlay sized by ALLSELECTED maximum
-		    //     • Red/green variance bar positioned relative to PY vs AC difference
-		    //     • Direction-aware labels and adjustable width for tight table cells
-		    //     • Simple data URI output for embedding in table or matrix visuals
+		    //     • PY baseline bar (grey) positioned at top
+		    //     • AC main bar (dark) overlaid and offset below PY bar
+		    //     • Red/green variance bar showing difference between AC and PY
+		    //     • AC value label positioned at end of AC bar (direction-aware alignment)
+		    //     • Auto-scaling based on ALLSELECTED maximum across the dimension
+		    //     • Adjustable width for tight table cells
 		    //=================================================================================================
-		
+
 		    VAR _ColorAC    = "#404040"  // AC bar color (dark)
 		    VAR _ColorPY    = "#C6C6C6"  // PY bar color (light grey)
 		    VAR _ColorRed   = "#E24B20"  // Red for negative variance
