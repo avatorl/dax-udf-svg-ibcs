@@ -320,38 +320,40 @@ function 'PowerofBI.IBCS.BarChart.AbsoluteVariance' =
 			// invert colors
 			invertColors: BOOLEAN VAL
 		)
-		=> 
+		=>
 			//=================================================================================================
-			// Project: UDF for generating IBCS-style charts (as SVG images)
-			// 
-			// The visualization design follows IBCS® guidelines:
+			// Project: UDF for generating IBCS-styled charts (as SVG images)
+			//
+			// The visualization design adheres to IBCS recommendations:
 			//   https://www.ibcs.com/ibcs-standards-1-2/
 			//
-			// IMPORTANT NOTE:
-			//   This visual is NOT produced, certified, authorized, or endorsed by IBCS®.
-			//   Reference: https://www.ibcs.com/
+			// IMPORTANT:
+			//   This visual is NOT produced, certified, authorized, or endorsed by IBCS®
+			//   https://www.ibcs.com/
 			//
-			// The generated SVG charts can be embedded in:
-			//   • Table visuals
-			//   • Matrix visuals
-			//   • New Card visual in Power BI
+			// The generated charts can be embedded inside Power BI visuals:
+			//   - Table
+			//   - Matrix
+			//   - New Card visuals
+			//
 			//=================================================================================================
 			// Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
-			// More information: https://powerofbi.org/
+			// More info: https://powerofbi.org/
 			// LinkedIn: https://www.linkedin.com/in/avatorl/
-			// Email: andrzej@powerofbi.org
+			// Email:    andrzej@powerofbi.org
 			//=================================================================================================
 			// License: MIT License (free and permissive)
-			//   https://en.wikipedia.org/wiki/MIT_License
+			// https://en.wikipedia.org/wiki/MIT_License
 			//=================================================================================================
 			// Description:
-			//   This UDF produces a horizontal diverging bar chart (absolute variance chart).
+			//   This UDF produces a horizontal diverging bar chart to show absolute variance.
 			//
-			// Features:
-			//   • Diverging bars — green for positive variance, red for negative variance
-			//   • Automatic scaling based on min/max variance across rows
-			//   • Data labels positioned dynamically on either side of the baseline
-			//   • Y-axis line positioned according to the min/max distribution
+			//   Features include:
+			//     • Diverging bars: green for positive variance, red for negative variance (supports color inversion)
+			//     • Baseline anchored by min/max variance to handle positive-only or mixed distributions
+			//     • Data labels aligned according to bar direction; totals render simplified labels
+			//     • Embedded sort key for stable ordering in Power BI visuals
+			//
 			//=================================================================================================
 			// CONFIGURATION: chart formatting options
 			//=================================================================================================//
@@ -552,44 +554,43 @@ function 'PowerofBI.IBCS.BarChart.RelativeVariance' =
             // Width of the generated SVG image (in px)
             imageWidth: INT64 VAL            
         ) 
-        => 
-            //=================================================================================================
-            // Project: UDF for generating IBCS-styled charts (as SVG images)
-            //
-            // The visualization design follows IBCS guidelines:
-            //   https://www.ibcs.com/ibcs-standards-1-2/
-            //
-            // IMPORTANT:
-            //   This visual is NOT produced, certified, authorized, endorsed, or approved by IBCS®.
-            //   https://www.ibcs.com/
-            //
-            // Supported visuals:
-            //   • Table
-            //   • Matrix
-            //   • New Card visual
-            //=================================================================================================
-            // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
-            // More information: https://powerofbi.org/
-            // LinkedIn:        https://www.linkedin.com/in/avatorl/
-            // Email:           andrzej@powerofbi.org
-            //=================================================================================================
-            // License: MIT License (free and permissive)
-            //   https://en.wikipedia.org/wiki/MIT_License
-            //=================================================================================================
-            // Description:
-            //   This UDF generates an SVG image displaying a “pin chart” representing a relative variance.
-            //
-            //   Example:
-            //     ΔPY% = ((AC + FC) – PY) / PY   expressed in %
-            //
-            //   Visual behavior:
-            //     • Green pin → positive variance
-            //     • Red pin   → negative variance
-            //     • Grey vertical line represents the baseline (PY)
-            //
-            //=================================================================================================
-            // CONFIG: core visual formatting and constants
-            //=================================================================================================
+		=>
+			//=================================================================================================
+			// Project: UDF for generating IBCS-styled charts (as SVG images)
+			//
+			// The visualization design adheres to IBCS recommendations:
+			//   https://www.ibcs.com/ibcs-standards-1-2/
+			//
+			// IMPORTANT:
+			//   This visual is NOT produced, certified, authorized, or endorsed by IBCS®
+			//   https://www.ibcs.com/
+			//
+			// The generated charts can be embedded inside Power BI visuals:
+			//   - Table
+			//   - Matrix
+			//   - New Card visuals
+			//
+			//=================================================================================================
+			// Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
+			// More info: https://powerofbi.org/
+			// LinkedIn: https://www.linkedin.com/in/avatorl/
+			// Email:    andrzej@powerofbi.org
+			//=================================================================================================
+			// License: MIT License (free and permissive)
+			// https://en.wikipedia.org/wiki/MIT_License
+			//=================================================================================================
+			// Description:
+			//   This UDF generates a pin chart to visualize relative variance (ΔPY%).
+			//
+			//   Features include:
+			//     • Green pin for positive variance, red pin for negative variance
+			//     • Grey baseline (PY) with pin head sized by variance magnitude and capped for outliers
+			//     • Label placement adjusts for direction and total rows
+			//     • Embedded sort key enables stable ordering in Power BI visuals
+			//
+			//=================================================================================================
+			// CONFIG: core visual formatting and constants
+			//=================================================================================================
 
             VAR _DEBUG = 0  
                 // When = 1, shows the entire SVG viewbox for debugging
@@ -817,25 +818,41 @@ function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
 			// Column that holds period (Month)
 			periodColumn: ANYREF EXPR
         ) =>
-            //=================================================================================================
-            // UDF: Returns SVG image for IBCS-styled column chart (Net Sales by Month)
-            //
-            //  Chart Type: Vertical Column Chart
-            //  Intended Usage: Place this measure in a Matrix visual with the period (e.g. Months) in Columns
-            //
-            //  Visual Elements per Month:
-            //    - Black solid column for Actuals (AC)
-            //    - Hatched column for Forecast (FC)
-            //    - White outlined column for Plan (PL)
-            //    - Grey triangle for Previous Year (PY)
-            //    - Red or Green variance bar (AC/FC vs PL)
-            //    - Data label (AC or FC values)
-            //    - Period label (Month)
-            //
-            //  Author: Based on styles from Andrzej Leszkiewicz (IBCS® Certified Analyst)
-            //  License: MIT Expat
-            //=================================================================================================
-            
+		    //=================================================================================================
+		    // Project: UDF for generating IBCS-styled charts (as SVG images)
+		    //
+		    // The visualization design adheres to IBCS recommendations:
+		    //   https://www.ibcs.com/ibcs-standards-1-2/
+		    //
+		    // IMPORTANT:
+		    //   This visual is NOT produced, certified, authorized, or endorsed by IBCS®
+		    //   https://www.ibcs.com/
+		    //
+		    // The generated charts can be embedded inside Power BI visuals:
+		    //   - Table
+		    //   - Matrix
+		    //   - New Card visuals
+		    //
+		    //=================================================================================================
+		    // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
+		    // More info: https://powerofbi.org/
+		    // LinkedIn: https://www.linkedin.com/in/avatorl/
+		    // Email:    andrzej@powerofbi.org
+		    //=================================================================================================
+		    // License: MIT License (free and permissive)
+		    // https://en.wikipedia.org/wiki/MIT_License
+		    //=================================================================================================
+		    // Description:
+		    //   This UDF renders an IBCS-styled vertical column chart for monthly values with variance markers.
+		    //
+		    //   Features include:
+		    //     • Actuals as solid black columns; forecasts as hatched columns when actuals are blank
+		    //     • Plan (budget) as outlined white columns and previous year as grey triangles
+		    //     • Red/green variance bar comparing AC/FC against plan
+		    //     • Data labels above bars and period labels beneath the plot, scaled across ALLSELECTED periods
+		    //
+		    //=================================================================================================
+		    
             //===============================================
             // 1. INPUT CALCULATIONS AND CONTEXT
             //===============================================
@@ -1016,22 +1033,38 @@ function 'PowerofBI.IBCS.Extras.PieChart.PctOfTotal' =
 		)
 		=>
 		    //=================================================================================================
-		    //Project: an UDF for generating IBCS-styled charts (as SVG images)
-		    //  The visualization design follows IBCS guidelines https://www.ibcs.com/ibcs-standards-1-2/
-		    //  Although it is not produced, not certified, not authorized, not endorsed by IBCS® https://www.ibcs.com/
-		    //  The charts can be embedded into Table, Matrix, and New Card core Power BI visuals
+		    // Project: UDF for generating IBCS-styled charts (as SVG images)
+		    //
+		    // The visualization design adheres to IBCS recommendations:
+		    //   https://www.ibcs.com/ibcs-standards-1-2/
+		    //
+		    // IMPORTANT:
+		    //   This visual is NOT produced, certified, authorized, or endorsed by IBCS®
+		    //   https://www.ibcs.com/
+		    //
+		    // The generated charts can be embedded inside Power BI visuals:
+		    //   - Table
+		    //   - Matrix
+		    //   - New Card visuals
+		    //
 		    //=================================================================================================
-		    //Author: Andrzej Leszkiewicz, an IBCS® Certified Analyst
-		    //  For more information, visit https://powerofbi.org/
-		    //  Connect on LinkedIn at https://www.linkedin.com/in/avatorl/
-		    //  Contact via email at andrzej@powerofbi.org
+		    // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
+		    // More info: https://powerofbi.org/
+		    // LinkedIn: https://www.linkedin.com/in/avatorl/
+		    // Email:    andrzej@powerofbi.org
 		    //=================================================================================================
-		    //License: MIT License https://en.wikipedia.org/wiki/MIT_License (free)
+		    // License: MIT License (free and permissive)
+		    // https://en.wikipedia.org/wiki/MIT_License
 		    //=================================================================================================
-		    // Description: This UDF generates an SVG image featuring a pie chart
-		    //              to show % of total in each table/matrix row.
-		    // Note: The visualization doesn't strictly follow IBCS guidelines,
-		    //       but provides additional context for IBCS-guided visualizations.
+		    // Description:
+		    //   This UDF generates a pie (donut-style) chart with a data label showing percentage of total.
+		    //
+		    //   Features include:
+		    //     • Optional pie rendering (label-only mode supported)
+		    //     • Adjustable font size drives both label sizing and pie radius
+		    //     • Background segment shows remainder; main fill represents the selected share
+		    //     • Embedded sort key to keep visuals ordered by value
+		    //
 		    //================================================================================================= 
 			// Debug mode: 1 = on, 0 = off. Adds a colored box for layout visualization.
 			VAR _DEBUG = 0
@@ -1190,16 +1223,39 @@ function 'PowerofBI.IBCS.ColumnChart.WithWaterfall' =
 		    
 		)
 		=>
-		    //  The function generates SVG-code of an IBCS-styled chart
-		    //  Chart type: 3-tier chart: column chart for absolute values, waterfall for (monthly) changes and pin chart for relative variances
+		    //=================================================================================================
+		    // Project: UDF for generating IBCS-styled charts (as SVG images)
+		    //
+		    // The visualization design adheres to IBCS recommendations:
+		    //   https://www.ibcs.com/ibcs-standards-1-2/
+		    //
+		    // IMPORTANT:
+		    //   This visual is NOT produced, certified, authorized, or endorsed by IBCS®
+		    //   https://www.ibcs.com/
+		    //
+		    // The generated charts can be embedded inside Power BI visuals:
+		    //   - Table
+		    //   - Matrix
+		    //   - New Card visuals
+		    //
 		    //=================================================================================================
 		    // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
-		    // More information: https://powerofbi.org/
+		    // More info: https://powerofbi.org/
 		    // LinkedIn: https://www.linkedin.com/in/avatorl/
-		    // Email: andrzej@powerofbi.org
+		    // Email:    andrzej@powerofbi.org
 		    //=================================================================================================
 		    // License: MIT License (free and permissive)
-		    //   https://en.wikipedia.org/wiki/MIT_License
+		    // https://en.wikipedia.org/wiki/MIT_License
+		    //=================================================================================================
+		    // Description:
+		    //   This UDF composes a three-tier IBCS visual: monthly columns, an absolute-variance waterfall, and relative-variance pins.
+		    //
+		    //   Features include:
+		    //     • AC/FC columns with PY references and year-total context
+		    //     • Waterfall bars for monthly ΔPY with cumulative connectors and total variance marker
+		    //     • Relative variance pin charts for monthly and total ΔPY%
+		    //     • Hatched patterns for forecast values and color-coded variance bars
+		    //
 		    //=================================================================================================
 		    // ==========================================
 		    // SECTION: PARAM BINDINGS (no external refs)
@@ -1513,6 +1569,40 @@ function 'PowerofBI.IBCS.ColumnChart.SmallMultiple' =
 			imageHeight: INT64 VAL
 			
 		) =>
+			//=================================================================================================
+			// Project: UDF for generating IBCS-styled charts (as SVG images)
+			//
+			// The visualization design adheres to IBCS recommendations:
+			//   https://www.ibcs.com/ibcs-standards-1-2/
+			//
+			// IMPORTANT:
+			//   This visual is NOT produced, certified, authorized, or endorsed by IBCS®
+			//   https://www.ibcs.com/
+			//
+			// The generated charts can be embedded inside Power BI visuals:
+			//   - Table
+			//   - Matrix
+			//   - New Card visuals
+			//
+			//=================================================================================================
+			// Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
+			// More info: https://powerofbi.org/
+			// LinkedIn: https://www.linkedin.com/in/avatorl/
+			// Email:    andrzej@powerofbi.org
+			//=================================================================================================
+			// License: MIT License (free and permissive)
+			// https://en.wikipedia.org/wiki/MIT_License
+			//=================================================================================================
+			// Description:
+			//   This UDF builds small-multiple variance column charts (absolute or relative) across categories.
+			//
+			//   Features include:
+			//     • Switchable variance type (absolute or relative) via parameter
+			//     • Differentiates actual vs planned periods with outline/fill styling
+			//     • Auto-scaling based on ALLSELECTED data to keep layouts consistent
+			//     • Configurable image dimensions for compact card layouts
+			//
+			//=================================================================================================
 			// EVALUATE
 			VAR _IsRelativeVariance = ( varianceType = "Relative" )
 			VAR _Country = SELECTEDVALUE ( columnCategory )   
@@ -1755,10 +1845,38 @@ function 'PowerofBI.IBCS.Waterfall.Vertical' =
 			columnLevel2: ANYREF EXPR
 		) =>
 			//=================================================================================================
-			// IBCS-styled vertical waterfall
-			// Read more: https://powerofbi.org/ibcs/
-			// Author: Andrzej Leszkiewicz
-			// Licene: MIT
+			// Project: UDF for generating IBCS-styled charts (as SVG images)
+			//
+			// The visualization design adheres to IBCS recommendations:
+			//   https://www.ibcs.com/ibcs-standards-1-2/
+			//
+			// IMPORTANT:
+			//   This visual is NOT produced, certified, authorized, or endorsed by IBCS®
+			//   https://www.ibcs.com/
+			//
+			// The generated charts can be embedded inside Power BI visuals:
+			//   - Table
+			//   - Matrix
+			//   - New Card visuals
+			//
+			//=================================================================================================
+			// Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
+			// More info: https://powerofbi.org/
+			// LinkedIn: https://www.linkedin.com/in/avatorl/
+			// Email:    andrzej@powerofbi.org
+			//=================================================================================================
+			// License: MIT License (free and permissive)
+			// https://en.wikipedia.org/wiki/MIT_License
+			//=================================================================================================
+			// Description:
+			//   This UDF renders a vertical waterfall for hierarchical P&L structures (AC/PY/PL styling).
+			//
+			//   Features include:
+			//     • Handles level-1 subtotals and level-2 detail rows with running totals
+			//     • ChartType parameter selects AC (black), PY (grey), or PL (outlined) semantics
+			//     • Optional subtotal markers show group starts and level totals
+			//     • Labels anchored relative to bar direction for readable P&L layouts
+			//
 			//=================================================================================================
 
 			//-------------------------------------------------------------------------------------------------
@@ -1986,15 +2104,38 @@ function 'PowerofBI.IBCS.ColumnChart.AbsoluteVarianceWide' =
 			
 		) =>
 			//=================================================================================================
-			// IBCS SVG Column – Actual vs Prior Year
-
-			// Visual semantics (IBCS):
-			//   - Base (PY): grey or outlined reference column
-			//   - AC: solid black column
-			//   - FC: optional hatched column (currently disabled)
-			//   - Variance: red/green bar showing AC(+FC) vs PY
-			//   - Data label: value of AC
-			//   - Period label: month abbreviation
+			// Project: UDF for generating IBCS-styled charts (as SVG images)
+			//
+			// The visualization design adheres to IBCS recommendations:
+			//   https://www.ibcs.com/ibcs-standards-1-2/
+			//
+			// IMPORTANT:
+			//   This visual is NOT produced, certified, authorized, or endorsed by IBCS®
+			//   https://www.ibcs.com/
+			//
+			// The generated charts can be embedded inside Power BI visuals:
+			//   - Table
+			//   - Matrix
+			//   - New Card visuals
+			//
+			//=================================================================================================
+			// Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
+			// More info: https://powerofbi.org/
+			// LinkedIn: https://www.linkedin.com/in/avatorl/
+			// Email:    andrzej@powerofbi.org
+			//=================================================================================================
+			// License: MIT License (free and permissive)
+			// https://en.wikipedia.org/wiki/MIT_License
+			//=================================================================================================
+			// Description:
+			//   This UDF renders a wide single-column visual comparing AC vs PY with a variance bar.
+			//
+			//   Features include:
+			//     • PY reference column (grey or outlined) with AC overlay
+			//     • Optional forecast column hook with hatched fill (currently disabled by design)
+			//     • Red/green variance indicator sized by AC+FC vs PY
+			//     • Data and period labels sized for matrix/table cell embedding
+			//
 			//=================================================================================================
 
 
@@ -2314,6 +2455,40 @@ function 'PowerofBI.IBCS.BarChart.WithAbsoluteVariance' =
 		    // Optional SVG width (0 = default)
 		    imageWidth: SCALAR VAL
 		) =>
+		    //=================================================================================================
+		    // Project: UDF for generating IBCS-styled charts (as SVG images)
+		    //
+		    // The visualization design adheres to IBCS recommendations:
+		    //   https://www.ibcs.com/ibcs-standards-1-2/
+		    //
+		    // IMPORTANT:
+		    //   This visual is NOT produced, certified, authorized, or endorsed by IBCS®
+		    //   https://www.ibcs.com/
+		    //
+		    // The generated charts can be embedded inside Power BI visuals:
+		    //   - Table
+		    //   - Matrix
+		    //   - New Card visuals
+		    //
+		    //=================================================================================================
+		    // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
+		    // More info: https://powerofbi.org/
+		    // LinkedIn: https://www.linkedin.com/in/avatorl/
+		    // Email:    andrzej@powerofbi.org
+		    //=================================================================================================
+		    // License: MIT License (free and permissive)
+		    // https://en.wikipedia.org/wiki/MIT_License
+		    //=================================================================================================
+		    // Description:
+		    //   This UDF outputs a compact horizontal bar chart with AC vs PY and a variance marker.
+		    //
+		    //   Features include:
+		    //     • PY baseline bar with AC overlay sized by ALLSELECTED maximum
+		    //     • Red/green variance bar positioned relative to PY vs AC difference
+		    //     • Direction-aware labels and adjustable width for tight table cells
+		    //     • Simple data URI output for embedding in table or matrix visuals
+		    //
+		    //=================================================================================================
 		    // Returns an SVG image with:
 		    //   • PY bar (baseline)
 		    //   • AC bar (actual)
