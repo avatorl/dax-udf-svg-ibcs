@@ -5,7 +5,7 @@
   "authors": "Andrzej Leszkiewicz",
   "description": "DAX user-defined functions for creating International Business Communication Standards (IBCS)-guided SVG visualizations embedded into core Power BI visuals.",
   "tags": "IBCS,SVG,VISUALIZATION",
-  "releaseNotes": "Descriptions updated for all functions",
+  "releaseNotes": "Descriptions and comments updated for all functions",
   "projectUrl": "https://powerofbi.org/ibcs",
   "repositoryUrl": "https://github.com/avatorl/dax-udf-svg-ibcs",
   "icon": "/icon.png",
