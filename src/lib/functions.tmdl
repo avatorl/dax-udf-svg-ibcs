@@ -808,7 +808,7 @@ function 'PowerofBI.IBCS.BarChart.RelativeVariance' =
 /// usage example: [PL] (plan/budget value, e.g., 4800)
 /// @param {scalar} valueFC
 /// usage example: [FC] (forecast value, e.g., 5200)
-/// @param periodColumn
+/// @param {anyref} periodColumn
 /// usage example: 'Date'[Month] (column that holds period for X-axis)
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
@@ -996,8 +996,7 @@ function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
 
     annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
-/// Generates an SVG image containing a pie chart and a data label representing the percentage of a value relative to the total (e.g., "21%")
-/// Creates a pie chart showing percentage of total
+/// Creates a pie chart (SVG image) showing percentage of total (e.g., "21%")
 /// @param {double} valueMain
 /// usage example: DIVIDE ( [AC], CALCULATE ( [AC], ALLSELECTED ( 'Payment Mode'[Payment Mode] ) ) ) (percentage as decimal, e.g., 0.25 for 25%)
 /// @param {string} dataLabel
@@ -1164,11 +1163,11 @@ function 'PowerofBI.IBCS.Extras.PieChart.PctOfTotal' =
 /// Creates a stacked column SVG showing product-group contributions inside a single category column
 /// @param {anyref} measureSalesByProductGroup
 /// usage example: [Sales by Product Group] (measure that returns sales for product group)
-/// @param columnProductGroup
+/// @param {anyref} columnProductGroup
 /// usage example: 'Product Group'[Product Group] (column containing product group values)
-/// @param columnProductGroupDisconnected
+/// @param {anyref} columnProductGroupDisconnected
 /// usage example: 'Product Group (disconnected)'[Product Group] (disconnected slicer column)
-/// @param columnPeriod
+/// @param {anyref} columnPeriod
 /// usage example: 'Date'[Start of Month] (period column used for axis/label)
 /// @param {int64} imageWidth
 /// usage example: 0 (default width 60px; use >0 for custom width in px)
@@ -1774,13 +1773,13 @@ function 'PowerofBI.IBCS.ColumnChart.WithWaterfall' =
 /// Creates absolute and relative variance small multiple column charts
 /// @param {string} varianceType
 /// usage example: "Absolute" or "Relative" (type of variance chart to generate)
-/// @param columnCategory
+/// @param {anyref} columnCategory
 /// usage example: 'Country'[Country] (column with a list of categories for individual cards)
-/// @param columnPeriod
+/// @param {anyref} columnPeriod
 /// usage example: 'Year'[Year] (column with a list of periods for X-axis values)
-/// @param measureDeltaAbsolute
+/// @param {anyref} measureDeltaAbsolute
 /// usage example: [Delta Average Sales] (absolute variance measure, e.g., 500)
-/// @param measureDeltaPct
+/// @param {anyref} measureDeltaPct
 /// usage example: [Delta Average Sales %] (relative variance measure as whole number, e.g., 15 for +15%)
 /// @param {scalar} endOfActual
 /// usage example: [EndOfActualPeriod] (last period with actual data, e.g., 2024; periods after this are treated as planned)
@@ -1855,10 +1854,10 @@ function 'PowerofBI.IBCS.ColumnChart.SmallMultiple' =
 					"@rowNum", ROWNUMBER ( _DataTable, ORDERBY ( [@Period], ASC ) )
 				)
 			VAR _PLPeriodStart = endOfActual + 1     // First planned period
-			VAR _PeriodEnd =MIN ( columnPeriod )  // First period in selection
-			VAR _PeriodStart = MAX ( columnPeriod )  // Last period in selection
+			VAR _PeriodEnd = MIN ( columnPeriod )  // Earliest period value (MIN = smallest year/date)
+			VAR _PeriodStart = MAX ( columnPeriod )  // Latest period value (MAX = largest year/date)
 			VAR _PeriodMiddle =
-				// Middle period for centering title
+				// Middle period for centering title (formula uses End-Start to find midpoint)
 				ROUND ( ( _PeriodEnd - _PeriodStart ) / 2 + _PeriodStart, 0 )
 			VAR _AllColumns = // All data points across all categories in ALLSELECTED context
 				CALCULATETABLE (                
