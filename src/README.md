@@ -10,7 +10,7 @@ Author: [Andrzej Leszkiewicz](https://www.linkedin.com/in/avatorl/)
 
 These UDFs generate charts (as SVG images) that can be embedded in core Power BI visuals such as table, matrix, button slicer, list slicer, card (new), or image (depending on the chart type).
 
-PBIX files with examplex: https://github.com/avatorl/dax-udf-svg-ibcs/tree/main/docs/pbix
+PBIX files with examples: https://github.com/avatorl/dax-udf-svg-ibcs/tree/main/docs/pbix
 
 ➡️ Create a measure that calls one of the functions and passes all required parameters.
 
@@ -114,11 +114,11 @@ Recommended to use in Button Slicer visual.
 
 ### PowerofBI.IBCS.ColumnChart.Stacked
 
-Stacked column chart. Features top N ranking (default 3) with an "Other" group, highlight of selected group (with placement of the hihlighted group on the bottom of the stack), and value labels inside segments.
+Stacked column chart. Features top N ranking (default 3) with an "Other" group, highlight of selected group (with placement of the highlighted group on the bottom of the stack), and value labels inside segments.
 
 <img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen-button-slicer-stacked-column.png" />
 
-Recommended to use in Buttom SLicer visual.
+Recommended to use in Button Slicer visual.
 
 ## License
 
