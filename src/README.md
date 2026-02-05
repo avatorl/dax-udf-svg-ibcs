@@ -112,6 +112,14 @@ Small multiple column charts (absolute and relative variance).
 
 Recommended to use in Button Slicer visual.
 
+### PowerofBI.IBCS.ColumnChart.Stacked
+
+Stacked column chart showing product group contributions within a single category column. Features top N ranking (default 3) with an "Other" bucket, highlight of selected disconnected product group, and value labels inside segments.
+
+<img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/img-column-chart-stacked.png" />
+
+Recommended to use in Matrix visual for timeline comparisons.
+
 ## License
 
 This project is licensed under the MIT License.
