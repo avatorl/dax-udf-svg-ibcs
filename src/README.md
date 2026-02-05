@@ -114,11 +114,11 @@ Recommended to use in Button Slicer visual.
 
 ### PowerofBI.IBCS.ColumnChart.Stacked
 
-Stacked column chart showing product group contributions within a single category column. Features top N ranking (default 3) with an "Other" bucket, highlight of selected disconnected product group, and value labels inside segments.
+Stacked column chart. Features top N ranking (default 3) with an "Other" group, highlight of selected group (with placement of the hihlighted group on the bottom of the stack), and value labels inside segments.
 
-<img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/img-column-chart-stacked.png" />
+<img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen-button-slicer-stacked-column.png" />
 
-Recommended to use in Matrix visual for timeline comparisons.
+Recommended to use in Buttom SLicer visual.
 
 ## License
 
