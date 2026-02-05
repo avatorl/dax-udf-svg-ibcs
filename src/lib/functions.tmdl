@@ -2783,7 +2783,9 @@ function 'PowerofBI.IBCS.BarChart.WithAbsoluteVariance' =
 		    VAR _ColorAC    = "#404040"  // AC bar color (dark)
 		    VAR _ColorPY    = "#C6C6C6"  // PY bar color (light grey)
 		    VAR _ColorRed   = "#E24B20"  // Red for negative variance
-	    VAR _ColorGreen = "#08787D"  // Green for positive variance
+		    VAR _ColorGreen = "#08787D"  // Green for positive variance
+		    VAR _FontSizePt = 18  // Font size in points
+		    VAR _SVG_Width  = IF ( imageWidth = 0, 300, imageWidth )  // SVG width (default 300px)
 		    VAR _RightPad   = 5  // Right padding
 		    VAR _LabelPad   = 5  // Label padding
 		
