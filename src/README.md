@@ -1,8 +1,10 @@
 # About PowerofBI.IBCS
 
-A package of DAX user-defined functions (UDFs) for creating International Business Communication Standards (IBCS)-guided SVG visualizations embedded in core Power BI visuals (matrix, button slicer, and others).
+A package of DAX user-defined functions (UDFs) for creating IBCS-guided data visualizations embedded in core Power BI visuals (matrix, button slicer, and others).
 
-Read more about IBCS and this package, and see interactive Power BI visuals created with this package: https://powerofbi.org/ibcs/.
+The International Business Communication Standards (IBCS) are practical proposals for the conceptual and visual design of comprehensible reports and presentations. Visit https://www.ibcs.com/ to get official information about the standards. The solution provided here is not produced, certified, authorized, or endorsed by IBCS®. The author is IBCS®-certified analyst, but not affiliated with IBCS®.
+
+Visit https://powerofbi.org/ibcs/ to read more about this package and see interactive data visualizations created using the package.
 
 Author: [Andrzej Leszkiewicz](https://www.linkedin.com/in/avatorl/)
 
