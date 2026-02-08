@@ -10,6 +10,28 @@
 /// @param {int64} imageWidth - 0 (default width 350px; use >0 for custom width in px)
 /// @param {int64} imageRightPad - 0 (default padding 190px; use >0 for custom right padding in px)
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
+///
+/// @example
+///     // Measure: SVG Bar Chart AC vs PY
+///     // Use in a matrix/table visual. Set column Data category = Image URL.
+///     VAR _IsTotalRow = NOT ( ISINSCOPE ( 'Category'[Category] ) )
+///     VAR _ScaleMax =
+///         MAXX ( ALLSELECTED ( 'Category' ), MAX ( [AC], [PY] ) )
+///     VAR _Result =
+///         PowerofBI.IBCS.BarChart.AbsoluteValues (
+///             [AC],                                    -- valueMain: your actual measure
+///             BLANK (),                                -- valueSecond: forecast, or BLANK()
+///             [PY],                                    -- valueBase: prior year / budget
+///             "grey",                                  -- baseType: "grey" for PY, "outlined" for BU
+///             FORMAT ( [AC], "#,0" ),                  -- dataLabel: formatted value text
+///             _IsTotalRow,                             -- isTotalRow: total row detection
+///             FALSE (),                                -- chartInTotalRow: FALSE = label only in totals
+///             _ScaleMax,                               -- valueMax: shared scale across all rows
+///             0,                                       -- imageWidth: 0 = default 350px
+///             0                                        -- imageRightPad: 0 = default 190px
+///         )
+///     RETURN
+///         _Result
 function 'PowerofBI.IBCS.BarChart.AbsoluteValues' =
         (
             // actual value: [AC]
@@ -267,14 +289,53 @@ function 'PowerofBI.IBCS.BarChart.AbsoluteValues' =
 /// Creates a diverging bar chart that compares absolute variance between two values (e.g., actual vs previous year). The bar extends to the right for positive variances and to the left for negative variances. A vertical line represents the zero baseline. The bar color indicates favorable (green) vs unfavorable (red) variance, which can be flipped based on business impact. Data labels are positioned next to the bars, with alignment depending on the variance direction. The total row is handled separately (data label only). The function includes an embedded sort key for proper sorting in Power BI visuals.
 /// @param {scalar} valueMain - variance value, e.g., 1500: [AC] - [PY]
 /// @param {string} dataLabel - formatted variance label, e.g., "+1,500": FORMAT ( [AC] - [PY], "+#,0;-#,0;=" )
-/// @param {boolean} isTotalRow - indicates if row is a total row: NOT ( ISINSCOPE ( 'Payment Mode'[Payment Mode] ) )
-/// @param {scalar} valueMax - maximum variance across ALLSELECTED: CALCULATE ( MAXX ( ALLSELECTED ( 'Payment Mode' ), [AC] - [PY] ), ALLSELECTED ( 'Payment Mode' ) )
-/// @param {scalar} valueMin - minimum variance across ALLSELECTED: CALCULATE ( MINX ( ALLSELECTED ( 'Payment Mode' ), [AC] - [PY] ), ALLSELECTED ( 'Payment Mode' ) )
-/// @param {scalar} valueScale - maximum value for scaling, can be max(AC, PY): MAXX ( ALLSELECTED ( 'Payment Mode' ), MAX ( [AC], [PY] ) )
+/// @param {boolean} isTotalRow - indicates if row is a total row: NOT ( ISINSCOPE ( 'Category'[Category] ) )
+/// @param {scalar} valueMax - maximum variance across ALLSELECTED: CALCULATE ( MAXX ( ALLSELECTED ( 'Category' ), [AC] - [PY] ), ALLSELECTED ( 'Category' ) )
+/// @param {scalar} valueMin - minimum variance across ALLSELECTED: CALCULATE ( MINX ( ALLSELECTED ( 'Category' ), [AC] - [PY] ), ALLSELECTED ( 'Category' ) )
+/// @param {scalar} valueScale - maximum value for scaling, can be max(AC, PY): MAXX ( ALLSELECTED ( 'Category' ), MAX ( [AC], [PY] ) )
 /// @param {int64} imageWidth - 0 (default width 350px; use >0 for custom width in px)
 /// @param {int64} imageRightPad - 0 (default right padding 90px; use >0 for custom padding in px)
 /// @param {int64} businessImpact - 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
+///
+/// @example
+///     // Measure: SVG Absolute Variance
+///     // Shows AC minus PY as green/red diverging bar in a matrix.
+///     PowerofBI.IBCS.BarChart.AbsoluteVariance (
+///         [AC] - [PY],                                                  -- valueMain
+///         FORMAT ( [AC] - [PY], "+#,0;-#,0;=" ),                        -- dataLabel
+///         NOT ( ISINSCOPE ( 'Category'[Category] ) ),                   -- isTotalRow
+///         CALCULATE (
+///             MAXX ( ALLSELECTED ( 'Category' ), [AC] - [PY] ),
+///             ALLSELECTED ( 'Category' )
+///         ),                                                            -- valueMax
+///         CALCULATE (
+///             MINX ( ALLSELECTED ( 'Category' ), [AC] - [PY] ),
+///             ALLSELECTED ( 'Category' )
+///         ),                                                            -- valueMin
+///         MAXX ( ALLSELECTED ( 'Category' ), MAX ( [AC], [PY] ) ),      -- valueScale
+///         0,                                                            -- imageWidth
+///         0,                                                            -- imageRightPad
+///         1                                                             -- businessImpact: 1=sales, -1=cost
+///     )
+///
+/// @example
+///     // Measure: SVG P&L Variance (with dynamic businessImpact)
+///     // For cost lines, positive delta means worse performance → use -1.
+///     VAR _BusinessImpact =
+///         IF ( SELECTEDVALUE ( 'P&L'[Sign] ) = "-", -1, 1 )
+///     RETURN
+///     PowerofBI.IBCS.BarChart.AbsoluteVariance (
+///         [Delta PY],
+///         FORMAT ( [Delta PY] / 1E6, "+#,0.0;-#,0.0;" ),
+///         NOT ( ISINSCOPE ( 'P&L'[Line Item] ) ),
+///         CALCULATE ( MAXX ( ALLSELECTED ( 'P&L' ), [Delta PY] ), ALLSELECTED ( 'P&L' ) ),
+///         CALCULATE ( MINX ( ALLSELECTED ( 'P&L' ), [Delta PY] ), ALLSELECTED ( 'P&L' ) ),
+///         MAXX ( ALLSELECTED ( 'P&L' ), MAX ( [AC], [PY] ) ),
+///         0,
+///         0,
+///         _BusinessImpact                                              -- flips color for cost lines
+///     )
 function 'PowerofBI.IBCS.BarChart.AbsoluteVariance' =
 		(
 			// variance value, e.g., 1500: [AC] - [PY]
@@ -283,16 +344,16 @@ function 'PowerofBI.IBCS.BarChart.AbsoluteVariance' =
 			// formatted variance label, e.g., "+1,500": FORMAT ( [AC] - [PY], "+#,0;-#,0;=" )
 			dataLabel: STRING VAL,  
 		
-			// indicates if row is a total row: NOT ( ISINSCOPE ( 'Payment Mode'[Payment Mode] ) )
+			// indicates if row is a total row: NOT ( ISINSCOPE ( 'Category'[Category] ) )
 			isTotalRow: BOOLEAN VAL, 
 		
-			// maximum variance across ALLSELECTED: CALCULATE ( MAXX ( ALLSELECTED ( 'Payment Mode' ), [AC] - [PY] ), ALLSELECTED ( 'Payment Mode' ) )
+			// maximum variance across ALLSELECTED: CALCULATE ( MAXX ( ALLSELECTED ( 'Category' ), [AC] - [PY] ), ALLSELECTED ( 'Category' ) )
 			valueMax: SCALAR VAL,  
 		
-			// minimum variance across ALLSELECTED: CALCULATE ( MINX ( ALLSELECTED ( 'Payment Mode' ), [AC] - [PY] ), ALLSELECTED ( 'Payment Mode' ) )
+			// minimum variance across ALLSELECTED: CALCULATE ( MINX ( ALLSELECTED ( 'Category' ), [AC] - [PY] ), ALLSELECTED ( 'Category' ) )
 			valueMin: SCALAR VAL,    
 		
-			// maximum value for scaling, can be max(AC, PY): MAXX ( ALLSELECTED ( 'Payment Mode' ), MAX ( [AC], [PY] ) )
+			// maximum value for scaling, can be max(AC, PY): MAXX ( ALLSELECTED ( 'Category' ), MAX ( [AC], [PY] ) )
 			valueScale: SCALAR VAL,
 		
 			// 0 (default width 350px; use >0 for custom width in px)
@@ -503,10 +564,21 @@ function 'PowerofBI.IBCS.BarChart.AbsoluteVariance' =
 /// Creates a pin bar chart that shows the relative (%) variance between two values. The bar extends to the right for positive variances and to the left for negative variances. A vertical line represents the zero baseline. The bar color indicates favorable (green) vs unfavorable (red) variance, which can be flipped based on business impact. Data labels are positioned next to the bars, with alignment depending on the variance direction. The total row is handled separately (data label only). The outliers are presented with an arrow (triangle). The function includes an embedded sort key for proper sorting in Power BI visuals.
 /// @param {scalar} valueMain - relative variance as whole number, e.g., 15 for +15%: DIVIDE ( [AC] - [PY], [PY] ) * 100
 /// @param {string} dataLabel - formatted variance label, e.g., "+15": FORMAT ( DIVIDE ( [AC] - [PY], [PY] ) * 100, "+#,0;-#,0;=" )
-/// @param {boolean} isTotalRow - indicates if row is a total row: NOT ( ISINSCOPE ( 'Payment Mode'[Payment Mode] ) )
+/// @param {boolean} isTotalRow - indicates if row is a total row: NOT ( ISINSCOPE ( 'Category'[Category] ) )
 /// @param {int64} imageWidth - 0 (default width 350px; use >0 for custom width in px)
 /// @param {int64} businessImpact - 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
+///
+/// @example
+///     // Measure: SVG Relative Variance %
+///     // Shows percentage change as a green/red pin bar in a matrix.
+///     PowerofBI.IBCS.BarChart.RelativeVariance (
+///         DIVIDE ( [AC] - [PY], [PY] ) * 100,                          -- valueMain: variance as whole number
+///         FORMAT ( DIVIDE ( [AC] - [PY], [PY] ) * 100, "+#,0;-#,0;=" ), -- dataLabel
+///         NOT ( ISINSCOPE ( 'Category'[Category] ) ),                   -- isTotalRow
+///         0,                                                            -- imageWidth: 0 = default
+///         1                                                             -- businessImpact: 1=sales, -1=cost
+///     )
 function 'PowerofBI.IBCS.BarChart.RelativeVariance' =
         (
             // relative variance as whole number, e.g., 15 for +15%: DIVIDE ( [AC] - [PY], [PY] ) * 100
@@ -515,7 +587,7 @@ function 'PowerofBI.IBCS.BarChart.RelativeVariance' =
             // formatted variance label, e.g., "+15": FORMAT ( DIVIDE ( [AC] - [PY], [PY] ) * 100, "+#,0;-#,0;=" )
             dataLabel: STRING VAL,  
 
-            // indicates if row is a total row: NOT ( ISINSCOPE ( 'Payment Mode'[Payment Mode] ) )
+            // indicates if row is a total row: NOT ( ISINSCOPE ( 'Category'[Category] ) )
             isTotalRow: BOOLEAN VAL,
 
             // 0 (default width 350px; use >0 for custom width in px)
@@ -759,6 +831,18 @@ function 'PowerofBI.IBCS.BarChart.RelativeVariance' =
 /// @param {anyref} periodColumn - column that holds period for X-axis ('Date'[Month])
 /// @param {int64} businessImpact - 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
+///
+/// @example
+///     // Measure: SVG Monthly Column Chart with Variance Bars
+///     // Place in a matrix with months on rows. Set Data category = Image URL.
+///     PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance (
+///         [Monthly AC],                  -- valueAC: actual measure evaluated per period
+///         [Monthly PY],                  -- valuePY: prior year measure
+///         [Monthly PL],                  -- valuePL: plan/budget measure
+///         [Monthly FC],                  -- valueFC: forecast measure
+///         'Date'[Month],                 -- periodColumn: column that defines X-axis periods
+///         1                              -- businessImpact: 1=sales, -1=cost
+///     )
 function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
         (
 			// actual value, e.g., 5000: [AC]
@@ -947,20 +1031,41 @@ function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
     annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
 /// Creates a pie chart (SVG image) showing percentage of total (e.g., "21%"). The pie chart consists of a filled black segment representing the percentage value and a grey background segment for the remainder. The data label is displayed to the left of the pie. The function includes an embedded sort key for proper sorting in Power BI visuals. The pie chart can be toggled on or off, allowing for a clean display of just the percentage label if desired.
-/// @param {double} valueMain - percentage as decimal, e.g., 0.25 for 25%: DIVIDE ( [AC], CALCULATE ( [AC], ALLSELECTED ( 'Payment Mode'[Payment Mode] ) ) )
+/// @param {double} valueMain - percentage as decimal, e.g., 0.25 for 25%: DIVIDE ( [AC], CALCULATE ( [AC], ALLSELECTED ( 'Category'[Category] ) ) )
 /// @param {string} dataLabel - formatted percentage label, e.g., "25%": FORMAT ( valueMain, "#,0%" )
-/// @param {boolean} isTotalRow - indicates if row is a total row: NOT ( ISINSCOPE ( 'Payment Mode'[Payment Mode] ) )
+/// @param {boolean} isTotalRow - indicates if row is a total row: NOT ( ISINSCOPE ( 'Category'[Category] ) )
 /// @param {boolean} showPieChart - toggle to display the pie chart or not: TRUE ()
 /// @param {int64} fontSize - 0 (font size in points for data label; 0 = default 14pt)
 /// @param {int64} imageWidth - 0 (default width 350px; use >0 for custom width in px)
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
+///
+/// @example
+///     // Measure: SVG Percent of Total
+///     // Shows a small pie chart with % label next to it.
+///     VAR _Total =
+///         CALCULATE ( [AC], ALLSELECTED ( 'Category'[Category] ) )
+///     VAR _ValuePct =
+///         DIVIDE ( [AC], _Total )
+///     VAR _IsTotalRow =
+///         NOT ( ISINSCOPE ( 'Category'[Category] ) )
+///     VAR _Result =
+///         PowerofBI.IBCS.Extras.PieChart.PctOfTotal (
+///             _ValuePct,                          -- valueMain: percentage as decimal (0.25 = 25%)
+///             FORMAT ( _ValuePct, "#,0%" ),       -- dataLabel: formatted percentage text
+///             _IsTotalRow,                        -- isTotalRow: total row detection
+///             TRUE (),                            -- showPieChart: TRUE = show pie, FALSE = label only
+///             0,                                  -- fontSize: 0 = default 14pt
+///             0                                   -- imageWidth: 0 = default 350px
+///         )
+///     RETURN
+///         _Result
 function 'PowerofBI.IBCS.Extras.PieChart.PctOfTotal' =
 		(
-			// percentage as decimal, e.g., 0.25 for 25%: DIVIDE ( [AC], CALCULATE ( [AC], ALLSELECTED ( 'Payment Mode'[Payment Mode] ) ) )
+			// percentage as decimal, e.g., 0.25 for 25%: DIVIDE ( [AC], CALCULATE ( [AC], ALLSELECTED ( 'Category'[Category] ) ) )
 			valueMain: DOUBLE VAL,
 			// formatted percentage label, e.g., "25%": FORMAT ( valueMain, "#,0%" )
 			dataLabel: STRING VAL,
-			// indicates if row is a total row: NOT ( ISINSCOPE ( 'Payment Mode'[Payment Mode] ) )
+			// indicates if row is a total row: NOT ( ISINSCOPE ( 'Category'[Category] ) )
 			isTotalRow: BOOLEAN VAL,
 			// toggle to display the pie chart or not: TRUE ()
 			showPieChart: BOOLEAN VAL,
@@ -1112,6 +1217,19 @@ function 'PowerofBI.IBCS.Extras.PieChart.PctOfTotal' =
 /// @param {int64} imageWidth - 0 (default width 60px; use >0 for custom width in px)
 /// @param {int64} imageHeight - 0 (default height 320px; use >0 for custom height in px)
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
+///
+/// @example
+///     // Measure: SVG Stacked Column Chart
+///     // Each cell renders one stacked column for a time period.
+///     // Requires a disconnected slicer table for highlight selection.
+///     PowerofBI.IBCS.ColumnChart.Stacked (
+///         [Sales by Product Group],                            -- measureSalesByProductGroup
+///         'Product Group'[Product Group],                      -- columnProductGroup
+///         'Product Group (disconnected)'[Product Group],       -- columnProductGroupDisconnected (slicer)
+///         'Date'[Start of Month],                              -- columnPeriod: defines X-axis
+///         60,                                                  -- imageWidth: px (narrow for matrix cells)
+///         320                                                  -- imageHeight: px
+///     )
 function 'PowerofBI.IBCS.ColumnChart.Stacked' =
         (
             // measure that returns sales for product group: [Sales by Product Group]
@@ -1156,7 +1274,7 @@ function 'PowerofBI.IBCS.ColumnChart.Stacked' =
                     "@Color", STRING,
                     "@ColorText", STRING,
                     {
-                        { 0, "#666688", "#FFFFFF" },
+                        { 0, "#003280", "#FFFFFF" },
                         { 1, "#606060", "#FFFFFF" },
                         { 2, "#808080", "#FFFFFF" },
                         { 3, "#A0A0A0", "#FFFFFF" },
@@ -1212,8 +1330,10 @@ function 'PowerofBI.IBCS.ColumnChart.Stacked' =
             /* -------------------------------------------------------------------------- */
 
 			// Typography
-			VAR _FontSizePt = 12
+			VAR _FontSizePt = 14
+				// Font size in points for labels
 			VAR _Em = _FontSizePt * 4 / 3
+				// Conversion from points to pixels
 
 			// SVG dimensions (defaults for compact matrix cells)
 			VAR _SVGHeight = IF ( imageHeight > 0, imageHeight, 320 )
@@ -1386,6 +1506,47 @@ function 'PowerofBI.IBCS.ColumnChart.Stacked' =
 /// @param {int64} pImageHeight - 0 (default height 620px; use >0 for custom height in px)
 /// @param {int64} businessImpact - 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
+///
+/// @example
+///     // Measure: SVG Waterfall Chart (monthly AC/FC vs PY)
+///     // Each row in the matrix is one month. The chart builds a cumulative
+///     // waterfall showing how monthly deltas add up to the full-year variance.
+///     VAR _Type = SELECTEDVALUE ( 'Data'[Type] )                   -- "AC" or "FC"
+///     VAR _Month = SELECTEDVALUE ( 'Data'[Month] )                 -- month number 1–12
+///     VAR _ValuePY = [Monthly PY]
+///     VAR _ValueACFC = [Monthly AC or FC]
+///     VAR _DeltaPYCumulative =
+///         CALCULATE (
+///             SUM ( 'Data'[AC or FC] ) - SUM ( 'Data'[PY] ),
+///             FILTER ( ALLSELECTED ( 'Data' ), 'Data'[Month] < _Month )
+///         )
+///     VAR _PY_Total =
+///         CALCULATE ( SUM ( 'Data'[PY] ), ALLSELECTED ( 'Data'[Month] ) )
+///     VAR _AC_Total =
+///         CALCULATE ( SUM ( 'Data'[AC or FC] ), 'Data'[Type] = "AC", ALLSELECTED ( 'Data' ) )
+///     VAR _FC_Total =
+///         CALCULATE ( SUM ( 'Data'[AC or FC] ), 'Data'[Type] = "FC", ALLSELECTED ( 'Data' ) )
+///     VAR _MaxValue =
+///         CALCULATE (
+///             MAX ( SUM ( 'Data'[PY] ), SUM ( 'Data'[AC or FC] ) ),
+///             ALLSELECTED ( 'Data' )
+///         )
+///     VAR _Result =
+///         PowerofBI.IBCS.ColumnChart.WithWaterfall (
+///             _Type,                          -- pType: scenario type
+///             _Month,                         -- pMonth: month number for X-axis label
+///             _ValuePY,                       -- pValuePY: monthly PY value
+///             _ValueACFC,                     -- pValueACFC: monthly AC or FC value
+///             _DeltaPYCumulative,             -- pDeltaPYCumulative: running delta to prior month
+///             _PY_Total,                      -- pPY_Total: full-year PY
+///             _AC_Total,                      -- pAC_Total: full-year AC
+///             _FC_Total,                      -- pFC_Total: full-year FC
+///             _MaxValue,                      -- pMaxValue: max value for scaling
+///             0,                              -- pImageHeight: 0 = default 620px
+///             1                               -- businessImpact: 1=sales, -1=cost
+///         )
+///     RETURN
+///         _Result
 function 'PowerofBI.IBCS.ColumnChart.WithWaterfall' =
 		(
 		    // type of current column, actual or forecast ("AC" or "FC")
@@ -1741,6 +1902,23 @@ function 'PowerofBI.IBCS.ColumnChart.WithWaterfall' =
 /// @param {int64} imageHeight - 0 (default height 220px; use >0 for custom height in px)
 /// @param {int64} businessImpact - 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
+///
+/// @example
+///     // Measure: SVG Small Multiple Variance Cards
+///     // Each card shows a column chart for one category (e.g., country).
+///     // Use SELECTEDVALUE on a slicer to toggle between Absolute/Relative.
+///     PowerofBI.IBCS.ColumnChart.SmallMultiple (
+///         SELECTEDVALUE ( 'Variance Type'[Type] ), -- varianceType: "Absolute" or "Relative"
+///         'Country'[Country],                      -- columnCategory: dimension for each card
+///         'Year'[Year],                            -- columnPeriod: X-axis periods
+///         [Delta Sales],                           -- measureDeltaAbsolute: absolute variance
+///         [Delta Sales %],                         -- measureDeltaPct: relative variance (whole %)
+///         [EndOfActualPeriod],                     -- endOfActual: last actual period (e.g., 2024)
+///         [Sales Total],                           -- measureSortOrder: for card ordering (add to Tooltips)
+///         0,                                       -- imageWidth: 0 = default 350px
+///         0,                                       -- imageHeight: 0 = default 220px
+///         1                                        -- businessImpact: 1=sales, -1=cost
+///     )
 function 'PowerofBI.IBCS.ColumnChart.SmallMultiple' =
 		(
 			// type of variance chart to generate: "Absolute" or "Relative"
@@ -2009,6 +2187,23 @@ function 'PowerofBI.IBCS.ColumnChart.SmallMultiple' =
 /// @param {anyref} columnLevel1 - first hierarchical level, e.g., Income, Expenses ('P&L'[Category])
 /// @param {anyref} columnLevel2 - second hierarchical level for nested hierarchy ('P&L'[SubCategory])
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
+///
+/// @example
+///     // Measure: SVG Vertical Waterfall for P&L (Actuals)
+///     // Place in a card/matrix. Each bar represents a P&L line item.
+///     // The waterfall accumulates from Revenue down to Net Profit.
+///     PowerofBI.IBCS.Waterfall.Vertical (
+///         "AC",                                                -- chartType: "AC" (black), "PY" (grey), "PL" (outlined)
+///         ALLSELECTED ( 'Income Statement' ),                  -- tableBase: the P&L structure table
+///         ABS ( [Income AC] ),                                 -- measureMainValue: absolute monetary value
+///         FORMAT ( ABS ( [Income AC] ) / 1E6, "#,0.0" ),       -- dataLabel: formatted label (e.g., in millions)
+///         [Row Sign],                                          -- columnRowSign: "+" / "-" / "=" per row
+///         'Income Statement'[Index],                           -- columnIndex: row ordering column
+///         MAXX ( ALLSELECTED ( 'Income Statement' ),           -- scaleMax: max value for scaling
+///             ABS ( [Total Revenue] ) ),
+///         'Income Statement'[Category],                        -- columnLevel1: top hierarchy (e.g., Revenue)
+///         'Income Statement'[Description]                      -- columnLevel2: detail level (e.g., Product Sales)
+///     )
 function 'PowerofBI.IBCS.Waterfall.Vertical' = 
 		( 
 			// chart rendering type: black for AC, grey for PY, outlined for PL ("AC", "PY", or "PL")
@@ -2273,6 +2468,24 @@ function 'PowerofBI.IBCS.Waterfall.Vertical' =
 /// @param {string} dataLabel - data label, e.g., "+500": FORMAT ( [AC] - [PY], "+#,0;-#,0;=" )
 /// @param {int64} businessImpact - 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
+///
+/// @example
+///     // Measure: SVG Wide Column Chart AC vs PY
+///     // Each matrix cell shows one month with AC bar, PY reference, and variance.
+///     PowerofBI.IBCS.ColumnChart.AbsoluteVarianceWide (
+///         [Monthly AC],                                              -- valueAC: actual value
+///         [Monthly PY],                                              -- valuePY: prior year value
+///         MAXX (                                                     -- valueMAX: shared scale
+///             ALLSELECTED ( 'Date'[Month] ),
+///             MAX ( [Monthly AC], [Monthly PY] )
+///         ),
+///         FORMAT (
+///             DATE ( 2020, SELECTEDVALUE ( 'Date'[Month] ), 1 ),
+///             "mmm"
+///         ),                                                         -- axiXLabel: month abbreviation
+///         FORMAT ( [Monthly AC], "#,0" ),                            -- dataLabel: formatted value
+///         1                                                          -- businessImpact: 1=sales, -1=cost
+///     )
 function 'PowerofBI.IBCS.ColumnChart.AbsoluteVarianceWide' =
 		(
 			// actual value, solid black, e.g., 5000: [AC]
@@ -2626,6 +2839,17 @@ function 'PowerofBI.IBCS.ColumnChart.AbsoluteVarianceWide' =
 /// @param {int64} imageWidth - 0 (default width 300px; use >0 for custom width in px)
 /// @param {int64} businessImpact - 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells, includes PY bar, AC bar, and red/green variance bar)
+///
+/// @example
+///     // Measure: SVG Bar Chart for Button Slicer (AC vs PY with variance)
+///     // Designed for Power BI button slicer visual. Shows AC, PY, and delta.
+///     PowerofBI.IBCS.BarChart.WithAbsoluteVariance (
+///         [AC],                                -- valueMain: actual measure
+///         [PY],                                -- valueBase: prior year measure
+///         'Sales Person'[Name],                -- columnDimension: for auto-scaling across visible rows
+///         0,                                   -- imageWidth: 0 = default 300px
+///         1                                    -- businessImpact: 1=sales, -1=cost
+///     )
 function 'PowerofBI.IBCS.BarChart.WithAbsoluteVariance' =
 		(
 		    // actual value, solid black bar, e.g., 5000: [AC]
