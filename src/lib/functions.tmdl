@@ -1,151 +1,143 @@
-/// Generates a horizontal bar chart that compares absolute values against a base reference. Displays the main value (actuals) as a solid black bar with an optional secondary value (forecast) as a stacked hatched bar extension. The base value can be styled as a gray bar (previous year) or an outlined bar (budget). A vertical line on the left represents an axis. Data labels are displayed next to the bars. The total row can include just a data label or a chart (the latter could be used to show an average of individual rows). The chart includes an embedded sort key for sorting in Power BI visuals.
-/// @param {scalar} valueMain - actual value: [AC]
-/// @param {scalar} valueSecond - secondary/forecast value, can be BLANK() if not used: [FC]
-/// @param {scalar} valueBase - previous year/budget value for comparison: [PY]
-/// @param {string} baseType - "grey" or "outlined" (determines base bar styling)
-/// @param {string} dataLabel - displayed label next to bars: FORMAT ( [AC] + [FC], "#,0" )
-/// @param {boolean} isTotalRow - indicates total row: NOT ( ISINSCOPE ( 'Category'[Category] ) )
-/// @param {boolean} chartInTotalRow - whether to show chart in total rows: FALSE ()
-/// @param {scalar} valueMax - max value for scaling: MAXX ( ALLSELECTED ( 'Category' ), MAX ( [AC] + [FC], [PY] ) )
-/// @param {int64} imageWidth - 0 (default width 350px; use >0 for custom width in px)
-/// @param {int64} imageRightPad - 0 (default padding 190px; use >0 for custom right padding in px)
+/// Creates a bar chart (SVG-image) that compares absolute values (actual value vs base value)
+/// @param {anyref} columnDimension - dimension in the rows: 'Payment Mode'[Payment Mode]
+/// @param {scalar} valueMain - main value (actuals): [AC]
+/// @param {scalar} valueSecond - secondary value (forecast), can be BLANK() if not used: [FC] or BLANK()
+/// @param {scalar} valueBase - base value (previous year, budget) for comparison: [PY] or [BU]
+/// @param {string} baseType - base bar styling: "grey" (for [PY]) or "outlined" (for [BU])
+/// @param {string} dataLabel - formatted data label: FORMAT ( [AC] + [FC], "#,0" )
+/// @param {int64} imageWidth - image width, same as on the Format pane: 350
+/// @param {int64} imageHeight - image height, same as on the Format pane: 35
+/// @param {boolean} syncWithAbsVariance - will be used together with Absolute Variance chart: TRUE() or FALSE()
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.BarChart.AbsoluteValues' =
         (
-            // actual value: [AC]
-            valueMain: SCALAR VAL, 
-            // secondary/forecast value, can be BLANK() if not used: [FC]
-            valueSecond: SCALAR VAL,
-            // previous year/budget value for comparison: [PY]
-            valueBase: SCALAR VAL,
-            // "grey" or "outlined" (determines base bar styling)
+            // dimension in the rows: 'Payment Mode'[Payment Mode]
+            columnDimension: ANYREF EXPR,
+            // main value (actuals): [AC]
+            valueMain: SCALAR EXPR,
+            // secondary value (forecast), can be BLANK() if not used: [FC] or BLANK()
+            valueSecond: SCALAR EXPR,
+            // base value (previous year, budget) for comparison: [PY] or [BU]
+            valueBase: SCALAR EXPR,
+            // base bar styling: "grey" (for [PY]) or "outlined" (for [BU])
             baseType: STRING VAL,
-            // displayed label next to bars: FORMAT ( [AC] + [FC], "#,0" )
+            // formatted data label: FORMAT ( [AC] + [FC], "#,0" )
             dataLabel: STRING VAL,
-            // indicates total row: NOT ( ISINSCOPE ( 'Category'[Category] ) )
-            isTotalRow: BOOLEAN VAL,
-            // whether to show chart in total rows: FALSE ()
-            chartInTotalRow: BOOLEAN VAL,
-            // max value for scaling: MAXX ( ALLSELECTED ( 'Category' ), MAX ( [AC] + [FC], [PY] ) )
-            valueMax: SCALAR VAL,
-            // 0 (default width 350px; use >0 for custom width in px)
+            // image width, same as on the Format pane: 350
             imageWidth: INT64 VAL,
-            // 0 (default padding 190px; use >0 for custom right padding in px)
-            imageRightPad: INT64 VAL
-        )
-        =>
+            // image height, same as on the Format pane: 35
+            imageHeight: INT64 VAL,
+            // will be used together with Absolute Variance chart: TRUE() or FALSE()
+            syncWithAbsVariance: BOOLEAN VAL
+        ) =>
             //=================================================================================================
             // Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
             // Project website: https://www.powerofbi.org/ibcs
-            // DAX Lib package:https://daxlib.org/package/PowerofBI.IBCS/
-            // PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
             // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
             // LinkedIn: https://www.linkedin.com/in/avatorl/
             // The visualization design adheres to IBCS recommendations,
             //      but this function is NOT produced, certified, authorized, or endorsed by IBCS®
-            // License: MIT License (free and permissive), https://en.wikipedia.org/wiki/MIT_License
+            // License: MIT License (free and permissive)
             //=================================================================================================
-
+            //
             //=================================================================================================
-            // CONFIGURATION: chart formatting and internal constants
+            // CONFIGURATION and CALCULATIONS
             //=================================================================================================
+            // When = 1, draws a rectangle showing the SVG boundaries (useful during layout tuning)
+            VAR _DEBUG = 0
 
-            VAR _DEBUG = 0 
-                // When = 1, draws a debug rectangle showing the SVG boundaries (useful during layout tuning)
+            // Axis line color
+            VAR _ColorAxis = "#000000"
 
-            VAR _SVG_Width_Default = 350
-                // Default width applied when no explicit imageWidth value is provided
+            // Fill color for main bar (actual and forecast)
+            VAR _ColorMain = "#404040"
 
-            VAR _SVG_LeftPadding = 0  
-                // Left padding before the bars (space to the left of Y-axis)
+            // Fill color for base bar (previous year or budget)
+            VAR _ColorSecond = "#C6C6C6"
 
-            VAR _SVG_TopPadding = 2  
-                // Vertical padding at the top of the SVG
+            // Outline color for main bar
+            VAR _ColorOutline = "#FFFFFF"
 
-            VAR _FontSize = 14  
-                // Base font size in points (pt)
+            // Outline color for base bar
+            VAR _ColorOutlineBase = "#c0c0c0"
 
-            VAR _OutlineWidth = 0.5  
-                // Outline width applied to bar borders
+            // Outline width applied to bar borders
+            VAR _OutlineWidth = 0.5
 
-            VAR _LabelOffset = 5  
-                // Horizontal offset between the bars and the data label
+            // Font size in px (also determines size and positioning of other chart elements)
+            VAR _Em = imageHeight * 0.6
 
-            VAR _ColorAxis = "#000000"  
-                // Axis line color
+            // Horizontal offset between the bar end and the data label
+            VAR _LabelOffset = _Em * 0.15
 
-            VAR _ColorMain = "#404040"  
-                // Fill color for main bar (actual)
+            // Scaled width for Y-axis line stroke
+            VAR _AxisLineWidth = _Em * 0.1
 
-            VAR _ColorSecond = "#C6C6C6"  
-                // Fill color for base bar (previous year)
+            // Vertical placement of the main bar
+            VAR _mainBarYPosition = ( imageHeight - _Em ) / 2
 
-            VAR _ColorOutline = "#FFFFFF"  
-                // Outline color for main bar
+            // White space to the right of the chart
+            // Increased white space is required to properly scale absolute variance chart in the next column:
+            //      Table / Matrix visuals do not support different image widths in different columns, but
+            //      to ensure the same scale is applied to both AbsoluteValues and AbsoluteVariance charts,
+            //      we need a 2x wide image for AbsoluteVariance chart (to fit both positive and negative sides)
+            VAR _RighPad =
+                imageWidth * IF ( syncWithAbsVariance, 0.5 + 0.15, 0.15 )
 
-            VAR _SVG_Width =
-                IF ( imageWidth > 0, imageWidth, _SVG_Width_Default )
-                // SVG width — either user-defined or default
+            // Is it a total row?
+            VAR _IsTotalRow = NOT ( ISINSCOPE ( columnDimension ) )
 
-            VAR _SVG_RightPadding =
-                IF ( imageRightPad > 0, imageRightPad, 190 )
-                // Space reserved on the right side to ensure label visibility
+            // Total rows are emphasized with bold text
+            VAR _FontWeight = IF ( _IsTotalRow, "bold", "normal" )
 
-            VAR _Rank =
-                1000000000000 + ROUND ( valueMain, 0 )
-                // Enables stable sorting in Power BI by embedding a sortable rank inside the SVG code
-				// Power BI sorts SVG images based on their text content, so including a "SortBy" comment with a numeric rank ensures correct sorting by valueMain
+            // Maximum value (longest bar) across the entire dimension (ALLSELECTED)
+            // Note: valueSecond is excluded from scaling to keep the main bar as the reference length
+            VAR _ValueMax =
+                MAXX (
+                    ALLSELECTED ( columnDimension ),
+                    MAX ( valueMain, valueBase )
+                )
 
+            // Enables sorting in Power BI by embedding a sortable rank inside the SVG code
+            // Power BI sorts SVG images based on their text content, 
+            //      so including the rank as a comment in the beginning of the SVG code ensures correct sorting by valueMain
+            VAR _Rank = 1000000000000 + ROUND ( valueMain, 0 )
+
+            // Base bar fill: grey for [PY], white for [BU]
             VAR _ColorBase =
-                SWITCH ( baseType, "grey", _ColorSecond, "outlined", "#FFFFFF" )
-                // Base bar fill: grey for PY, white for BU
+                SWITCH (
+                    baseType,
+                    "grey", _ColorSecond,
+                    "outlined", "#FFFFFF"
+                )
 
+            // Base bar outline
             VAR _ColorBaseOutline =
-                SWITCH ( baseType, "grey", "#c0c0c0", "outlined", _ColorMain )
-                // Base bar outline: subtle grey for PY, dark outline for BU
+                SWITCH (
+                    baseType,
+                    "grey", _ColorOutlineBase,
+                    "outlined", _ColorMain
+                )
 
-            VAR _Em =
-                ROUND ( _FontSize * 4 / 3, 0 )
-                // Converts font size from points (pt) to pixels (px); SVG uses px internally
+            // Space available for the horizontal bar(s)
+            VAR _MaxRectWidth = imageWidth - _RighPad
 
-            VAR _AxisLineWidth = _Em * 0.1  
-                // Scaled width for Y-axis line stroke
+            // Scaling factor: pixels per data unit, using max from ALLSELECTED scope
+            VAR _Scale = DIVIDE ( _MaxRectWidth, _ValueMax )
 
-            VAR _mainBarYPosition = _Em * 0.25 + _SVG_TopPadding  
-                // Vertical placement of the main and secondary bars
+            // Width of the main bar (Actuals)
+            VAR _WidthMain = ROUND ( valueMain * _Scale, 0 )
 
-            VAR _FontWeight =
-                IF ( isTotalRow, "bold", "normal" )
-                // Total rows are emphasized with bold text
-
-            //=================================================================================================
-            // SCALING: Convert data values into pixel lengths
-            //=================================================================================================
-
-            VAR _SVG_ColumnWidth =
-                _SVG_Width - _SVG_LeftPadding - _SVG_RightPadding
-                // Space available for the horizontal bar(s)
-
-            VAR _Scale =
-                DIVIDE ( _SVG_ColumnWidth, valueMax )
-                // Scaling factor: pixels per data unit, using max from ALLSELECTED scope
-
-            VAR _WidthMain =
-                ROUND ( valueMain * _Scale, 0 )
-                // Width of the main bar (Actuals)
-
+            // Width of the stacked secondary bar (Forecast)
             VAR _WidthSecond =
                 ROUND ( valueSecond * _Scale, 0 )
-                // Width of the stacked secondary bar (Forecast)
 
-            VAR _WidthBase =
-                ROUND ( valueBase * _Scale, 0 )
-                // Width of the base comparison bar (Previous Year or Budget)
+            // Width of the base comparison bar (Previous Year or Budget)
+            VAR _WidthBase = ROUND ( valueBase * _Scale, 0 )
 
             //=================================================================================================
             // SVG GENERATION: Build all SVG components
             //=================================================================================================
-
             //=================================================================================================
             // PowerofBI.IBCS.BarChart.AbsoluteValues function generates the following visual elements:
             //     • Y-axis line (vertical black line at left edge)
@@ -153,30 +145,39 @@ function 'PowerofBI.IBCS.BarChart.AbsoluteValues' =
             //     • Stacked bars for main and secondary values:
             //           - Main value (AC, actuals): solid black bar
             //           - Secondary value (FC, forecast): hatched diagonal pattern
-            //     • Data labels placed to the right of the bar(s)
-            //     • Embedded sort key for stable ordering in Power BI visuals
-            //     • Total row mode: simplified label only (no chart) when chartInTotalRow is FALSE
-            //=================================================================================================			
-
+            //     • Data label placed to the right of the bar
+            //=================================================================================================
+            // MIME type prefix for inline SVG data URI
             VAR _SVG_Header = "data:image/svg+xml;utf8,"
-                // MIME type prefix for inline SVG data URI
-            VAR _SVG_Open   = "<svg xmlns='http://www.w3.org/2000/svg' width='" & _SVG_Width & "' >"
-                // SVG root element with width attribute
-            VAR _SVG_Close  = "</svg>"
-                // SVG closing tag
 
+            // SVG root element with width and height attributes
+            VAR _SVG_Open =
+                "<svg xmlns='http://www.w3.org/2000/svg' width='"
+                    & imageWidth
+                    & "' height='"
+                    & imageHeight
+                    & "'"
+                    & " >"
+
+            // SVG closing tag
+            VAR _SVG_Close = "</svg>"
+
+            // CSS style for text elements
             VAR _SVG_Style =
-                "<style>
-                    text{
-                        font-family: 'Segoe UI', sans-serif;
-                        font-size: " & _Em & "px;
-                        font-weight: " & _FontWeight & ";
-                        dominant-baseline: central;
-                    }
-                </style>"
-
+                ( "<style>
+                text{
+                font-family: 'Segoe UI', sans-serif;
+                font-size: "
+                    & _Em
+                    & "px;
+                font-weight: "
+                    & _FontWeight
+                    & ";
+                dominant-baseline: central;
+                </style>" )
+            // Hatched pattern definition for secondary bar (forecast, optional)
             VAR SVG_HatchedPattern =
-                "/*hatched pattern*/
+                ( "/*hatched pattern*/
                 <defs>
                     <pattern id='diagonal-stripe' patternUnits='userSpaceOnUse' width='8' height='8'>
                         <!-- white background -->
@@ -186,606 +187,923 @@ function 'PowerofBI.IBCS.BarChart.AbsoluteValues' =
                             M-2,2 l4,-4
                             M0,8 l8,-8
                             M6,10 l4,-4' 
-                        style='stroke:black; stroke-width:2' />
+                            style='stroke:black; stroke-width:2' />
                     </pattern>
-                </defs>"
-				// Hatched pattern definition for the secondary bar (forecast)
-
+                </defs>" )
+            //
+            // Comment-based sort key injected into SVG for sorting by a column with embedded SVG
             VAR _SVG_SortBy = "/*SortBy:" & _Rank & "*/"
-                // Comment-based sort key injected into SVG for Power BI sorting
 
+            // Debug overlay to visualize available drawing area
             VAR _SVG_DebugBox =
                 IF (
                     _DEBUG,
-                    "<rect id='rect-debug-box' x='0%' y='0%' width='" 
-                        & _SVG_ColumnWidth + _Em * 5 * 2/3 
+                    "<rect id='rect-debug-box' x='0%' y='0%' width='"
+                        & imageWidth
+                        & "' height='100%' fill='#FFFFAA' stroke-width='1' stroke='#FF0000' />
+                                    <rect id='rect-debug-box' x='0%' y='0%' width='"
+                        & imageWidth / 2
                         & "' height='100%' fill='#FFFFAA' stroke-width='1' stroke='#FF0000' />",
                     ""
                 )
-                // Debug overlay to visualize available drawing area
 
+            // Y-axis vertical line at left edge
             VAR _SVG_LineAxisY =
-                // Y-axis vertical line at left padding
-                "<line id='line-axis-y' x1='" & _SVG_LeftPadding & "px' x2='" & _SVG_LeftPadding & 
-                "' y1='0%' y2='100%' stroke='" & _ColorAxis & "' stroke-width='" & _AxisLineWidth & "'></line>"
+                "<line id='line-axis-y' x1='0px' x2='0px' y1='0%' y2='100%' stroke='"
+                    & _ColorAxis
+                    & "' stroke-width='"
+                    & _AxisLineWidth
+                    & "'></line>"
 
+            // PY/BU reference bar (grey or outlined)
             VAR _SVG_BarBase =
-                // PY/BU reference bar (grey or outlined)
-                "<rect id='rect-base-value' x='" & _SVG_LeftPadding & "px' width='" & _WidthBase &
-                "' y='" & _SVG_TopPadding & "' height='" & _Em &
-                "' fill='" & _ColorBase & "' stroke='" & _ColorBaseOutline &
-                "' stroke-width='" & _OutlineWidth & "'></rect>"
+                "<rect id='rect-base-value' x='0px' width='" & _WidthBase
+                    & "' y='"
+                    & 0
+                    & "' height='"
+                    & _Em
+                    & "' fill='"
+                    & _ColorBase
+                    & "' stroke='"
+                    & _ColorBaseOutline
+                    & "' stroke-width='"
+                    & _OutlineWidth
+                    & "'></rect>"
 
+            // AC (Actuals) bar - solid black
             VAR _SVG_BarMain =
-                // AC (Actuals) bar - solid black
-                "<rect id='rect-main-value' x='" & _SVG_LeftPadding & "px' width='" & _WidthMain &
-                "' y='" & _mainBarYPosition & "' height='" & _Em &
-                "' fill='" & _ColorMain & "' stroke='" & _ColorOutline &
-                "' stroke-width='" & _OutlineWidth & "'></rect>"
+                "<rect id='rect-main-value' x='0px' width='" & _WidthMain
+                    & "' y='"
+                    & _mainBarYPosition
+                    & "' height='"
+                    & _Em
+                    & "' fill='"
+                    & _ColorMain
+                    & "' stroke='"
+                    & _ColorOutline
+                    & "' stroke-width='"
+                    & _OutlineWidth
+                    & "'></rect>"
 
+            // FC (Forecast) bar - hatched pattern
             VAR _SVG_BarSecond =
-                // FC (Forecast) bar - hatched pattern
-                "<rect id='rect-second-value' x='" & _SVG_LeftPadding + _WidthMain & "px' width='" &
-                _WidthSecond & "' y='" & _mainBarYPosition + _OutlineWidth & "' height='" & _Em - _OutlineWidth * 2  &
-                "' fill='url(#diagonal-stripe)' stroke='" & _ColorMain &
-                "' stroke-width='" & _OutlineWidth & "'></rect>"
+                "<rect id='rect-second-value' x='" & _WidthMain
+                    & "px' width='"
+                    & _WidthSecond
+                    & "' y='"
+                    & _mainBarYPosition + _OutlineWidth
+                    & "' height='"
+                    & _Em - _OutlineWidth * 2
+                    & "' fill='url(#diagonal-stripe)' stroke='"
+                    & _ColorMain
+                    & "' stroke-width='"
+                    & _OutlineWidth
+                    & "'></rect>"
 
+            // Data label positioned to the right of bars
             VAR _SVG_TextACFCLabel =
-                // Data label positioned to the right of bars
-                "<text x='" & (_SVG_LeftPadding + _WidthMain + _WidthSecond) &
-                "' dx='" & _LabelOffset & "' y='" & (_mainBarYPosition + _Em * 0.5) &
-                "'>" & dataLabel & "</text>"
+                "<text x='" & ( _WidthMain + _WidthSecond ) & "' dx='"
+                    & _LabelOffset
+                    & "' y='"
+                    & ( imageHeight / 2 - _Em * 0.05 )
+                    & "'>"
+                    & dataLabel
+                    & "</text>"
 
+            // Label for total rows
             VAR _SVG_TextACFCLabelTotal =
-                // Simplified label for total rows (centered)
-                "<text x='" & _SVG_LeftPadding & "' dx='0' y='50%'>" &
-                dataLabel & "</text>"
+                "<text x='0' dx='0' y='50%'>" & dataLabel & "</text>"
+
+            // SVG markup for total rows (label only, no chart)
+            VAR _SVG_Total =
+                _SVG_Header & _SVG_Open & _SVG_DebugBox & _SVG_Style
+                    & _SVG_TextACFCLabelTotal
+                    & _SVG_Close
+
+            // SVG markup for detail rows (with all chart elements)
+            VAR _SVG_Row =
+                _SVG_Header & _SVG_Open & _SVG_Style & _SVG_SortBy
+                    & _SVG_DebugBox
+                    & SVG_HatchedPattern
+                    & _SVG_BarBase
+                    & _SVG_BarMain
+                    & _SVG_BarSecond
+                    & _SVG_LineAxisY
+                    & _SVG_TextACFCLabel
+                    & _SVG_Close
 
             // Two different output modes:
             //   • _SVG_Total → when row is total AND total-row charts disabled
             //   • _SVG_Row   → normal row with full chart rendering
-            VAR _SVG_Total =
-                // SVG markup for total rows (label only, no chart)
-                _SVG_Header & _SVG_Open & _SVG_DebugBox & _SVG_Style &
-                _SVG_TextACFCLabelTotal & _SVG_Close
-
-            VAR _SVG_Row =
-                // SVG markup for detail rows (with all chart elements)
-                _SVG_Header & _SVG_Open & _SVG_Style & _SVG_SortBy & _SVG_DebugBox &
-                SVG_HatchedPattern & _SVG_BarBase & _SVG_BarMain & _SVG_BarSecond &
-                _SVG_LineAxisY & _SVG_TextACFCLabel & _SVG_Close
-
-            VAR _Result =
-                IF ( isTotalRow && NOT chartInTotalRow, _SVG_Total, _SVG_Row )
-
-            RETURN _Result
+            VAR _Result = IF ( _IsTotalRow, _SVG_Total, _SVG_Row )
+            RETURN
+                _Result
 
     annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
 
     annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
-/// Creates a diverging bar chart that compares absolute variance between two values (e.g., actual vs previous year). The bar extends to the right for positive variances and to the left for negative variances. A vertical line represents the zero baseline. The bar color indicates favorable (green) vs unfavorable (red) variance, which can be flipped based on business impact. Data labels are positioned next to the bars, with alignment depending on the variance direction. The total row is handled separately (data label only). The function includes an embedded sort key for proper sorting in Power BI visuals.
-/// @param {scalar} valueMain - variance value, e.g., 1500: [AC] - [PY]
-/// @param {string} dataLabel - formatted variance label, e.g., "+1,500": FORMAT ( [AC] - [PY], "+#,0;-#,0;=" )
-/// @param {boolean} isTotalRow - indicates if row is a total row: NOT ( ISINSCOPE ( 'Category'[Category] ) )
-/// @param {scalar} valueMax - maximum variance across ALLSELECTED: CALCULATE ( MAXX ( ALLSELECTED ( 'Category' ), [AC] - [PY] ), ALLSELECTED ( 'Category' ) )
-/// @param {scalar} valueMin - minimum variance across ALLSELECTED: CALCULATE ( MINX ( ALLSELECTED ( 'Category' ), [AC] - [PY] ), ALLSELECTED ( 'Category' ) )
-/// @param {scalar} valueScale - maximum value for scaling, can be max(AC, PY): MAXX ( ALLSELECTED ( 'Category' ), MAX ( [AC], [PY] ) )
-/// @param {int64} imageWidth - 0 (default width 350px; use >0 for custom width in px)
-/// @param {int64} imageRightPad - 0 (default right padding 90px; use >0 for custom padding in px)
-/// @param {int64} businessImpact - 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
+/// Creates a diverging bar chart that compares absolute variance between two values (e.g., actual vs previous year)
+/// @param {anyref} columnDimension - dimension in the rows: 'Payment Mode'[Payment Mode]
+/// @param {scalar} valueMain - main value (actuals): [AC]
+/// @param {scalar} valueSecond - secondary value (forecast), can be BLANK() if not used: [FC] or BLANK()
+/// @param {scalar} valueBase - base value (previous year, budget) for comparison: [PY] or [BU]
+/// @param {scalar} valueScale - measure for scaling: [AC]
+/// @param {string} baseType - axis Y line styling: "grey" (single thick grey line) or "outlined" (two thin black lines)
+/// @param {boolean} totalRow - is it a Total row: NOT ( ISINSCOPE ( 'Payment Mode'[Payment Mode] ) )
+/// @param {string} dataLabel - formatted data label: FORMAT ( [AC] + [FC] - [PY], "+#,0;-#,0;=" )
+/// @param {int64} imageWidth - image width, same as on the Format pane: 350
+/// @param {int64} imageHeight - image height, same as on the Format pane: 35
+/// @param {int64} businessImpact - business impact of variance > 0: 1 (positive, sales) or -1 (negative, cost)
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.BarChart.AbsoluteVariance' =
-		(
-			// variance value, e.g., 1500: [AC] - [PY]
-			valueMain: SCALAR VAL,
-		
-			// formatted variance label, e.g., "+1,500": FORMAT ( [AC] - [PY], "+#,0;-#,0;=" )
-			dataLabel: STRING VAL,  
-		
-			// indicates if row is a total row: NOT ( ISINSCOPE ( 'Category'[Category] ) )
-			isTotalRow: BOOLEAN VAL, 
-		
-			// maximum variance across ALLSELECTED: CALCULATE ( MAXX ( ALLSELECTED ( 'Category' ), [AC] - [PY] ), ALLSELECTED ( 'Category' ) )
-			valueMax: SCALAR VAL,  
-		
-			// minimum variance across ALLSELECTED: CALCULATE ( MINX ( ALLSELECTED ( 'Category' ), [AC] - [PY] ), ALLSELECTED ( 'Category' ) )
-			valueMin: SCALAR VAL,    
-		
-			// maximum value for scaling, can be max(AC, PY): MAXX ( ALLSELECTED ( 'Category' ), MAX ( [AC], [PY] ) )
-			valueScale: SCALAR VAL,
-		
-			// 0 (default width 350px; use >0 for custom width in px)
-			imageWidth: INT64 VAL,
-		
-			// 0 (default right padding 90px; use >0 for custom padding in px)
-			imageRightPad: INT64 VAL,
-			
-			// 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
-			businessImpact: INT64 VAL
-		)
-        =>
-            //=================================================================================================
-            // Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
-            // Project website: https://www.powerofbi.org/ibcs
-            // DAX Lib package:https://daxlib.org/package/PowerofBI.IBCS/
-            // PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
-            // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
-            // LinkedIn: https://www.linkedin.com/in/avatorl/
-            // The visualization design adheres to IBCS recommendations,
-            //      but this function is NOT produced, certified, authorized, or endorsed by IBCS®
-            // License: MIT License (free and permissive), https://en.wikipedia.org/wiki/MIT_License
-            //=================================================================================================
-
-            VAR _DEBUG = 0  
-				// When set to 1, displays a debug overlay showing the entire SVG viewbox
-		
-			VAR _Rank =
-				1000000000000
-					+ ROUND ( valueMain + ABS ( valueMin ), 0 )
-				// Rank embedded in SVG to enforce correct sorting in Power BI visuals
-		
-			VAR _SVG_Width =
-				IF ( imageWidth > 0, imageWidth, 350 )
-				// Final SVG width (user-defined or default)
-		
-			VAR _ColorGrey  = "#C6C6C6"
-			VAR _ColorRed   = "#E24B20"
-			VAR _ColorGreen = "#08787D"
-		
-			VAR _Em = 14 * 4 / 3  
-				// Font size converted from pt to px
-		
-			VAR _SVG_LeftPadding  = 100
-				// Left margin before the bar and axis (space for category labels if needed)
-		
-			VAR _SVG_RightPadding =
-				IF ( imageRightPad > 0, imageRightPad, 90 )
-				// Right margin to ensure label visibility
-		
-			VAR _SVG_TopPadding = 2  
-				// Top padding
-		
-			VAR _YPosition = _Em * 0.25 + _SVG_TopPadding  
-				// Vertical bar position
-		
-			VAR _SVG_ColumnWidth =
-				_SVG_Width - _SVG_LeftPadding - _SVG_RightPadding
-				// Available width for the diverging bar
-		
-			VAR _Scale =
-				DIVIDE ( _SVG_ColumnWidth, valueScale )
-				// Conversion factor: data units → pixel width
-		
-			VAR _FontWeight =
-				IF ( isTotalRow, "bold", "normal" )
-				// Total rows use bold labels
-			//=================================================================================================
-			// SCALING: Calculate bar dimensions and baseline position
-			//=================================================================================================//
-		
-			VAR _AxisYPosition =
-				_SVG_LeftPadding +
-					IF (
-						valueMin >= 0,
-						0,   // All values are positive → baseline left-aligned
-						ROUND (
-							DIVIDE ( ABS ( valueMin ), ABS ( valueMin ) + valueMax ) 
-							* _SVG_ColumnWidth,
-							0
-						)
-					)
-				// X-position of the zero baseline in a diverging bar chart
-		
-			VAR _WidthValue =
-				ROUND ( ABS ( valueMain ) * _Scale, 0 )
-				// Width of the bar representing the variance
-		
-			VAR _barColor =
-				IF ( valueMain * businessImpact > 0, _ColorGreen, _ColorRed )
-				// Green for favorable, red for unfavorable (flipped by businessImpact)
-		
-			VAR _X =
-				SWITCH (
-					TRUE (),
-					valueMain >= 0, _AxisYPosition,
-					valueMain < 0,  _AxisYPosition - _WidthValue
-				)
-				// X-position of the bar start (left edge)
-		
-			VAR _XText =
-				SWITCH (
-					TRUE (),
-					valueMain >= 0, _AxisYPosition + _WidthValue,
-					valueMain < 0,  _X
-				)
-				// X-position of the text label
-		
-			VAR _Anchor =
-				IF (
-					isTotalRow,
-					"middle",   // Center alignment for total rows
-					IF ( valueMain >= 0, "start", "end" )
-				)
-				// Text alignment depends on value direction and row type
-		
-			VAR _DX =
-				SWITCH (
-					TRUE (),
-					valueMain >= 0, 5,   // Slight offset to the right
-					valueMain < 0, -5   // Slight offset to the left
-				)
-				// Text offset relative to anchor position
-			//=================================================================================================    
-			// SVG GENERATION: Compose complete SVG markup
-			//=================================================================================================//
-		
-			VAR _SVG_Header = "data:image/svg+xml;utf8,"
-				// MIME type prefix for inline SVG data URI
-		
-			VAR _SVG_Open =
-				// SVG root element with width attribute
-				"<svg xmlns='http://www.w3.org/2000/svg' width='" 
-					& _SVG_Width & "' >"
-		
-			VAR _SVG_Style =
-				// CSS styling for text elements
-				"<style>
-					text {
-						font-family: Segoe UI, wf_segoe-ui_normal, sans-serif;
-						font-size: " & _Em & "px;
-						font-weight: " & _FontWeight & ";
-						dominant-baseline: central;
-						text-anchor: " & _Anchor & ";
-					}
-				</style>"
-		
-			VAR _SVG_Close = "</svg>"
-				// SVG closing tag
-		
-			VAR _SVG_SortBy =
-				"/*SortBy:" & _Rank & "*/"
-				// Ensures sorting works correctly in visuals
-		
-			VAR _SVG_DebugBox =
-				IF (
-					_DEBUG,
-					"<rect id='rect-debug-box' x='0%' y='0%' width='100%' height='100%' 
-						  fill='#FFFFAA' stroke-width='1' stroke='#FF0000' />",
-					""
-				)
-				// Debug rectangle overlay
-		
-			VAR _SVG_AxisY =
-				// Zero baseline vertical line at calculated position
-				"<line id='line-axis-y' x1='" & _AxisYPosition & "' x2='" & _AxisYPosition &
-				"' y1='0%' y2='100%' stroke='" & _ColorGrey & 
-				"' stroke-width='" & _Em * 0.3 & "'></line>"
-		
-			VAR _SVG_BarDeltaPY =
-				// Diverging bar (positive or negative)
-				"<rect id='rect-bar-delta-py' x='" & _X & "' width='" & _WidthValue &
-				"' y='" & _YPosition & "' height='" & _Em & "' fill='" & _barColor &
-				"' stroke='white' stroke-width='0.5'></rect>"
-		
-			VAR _SVG_TextDeltaPYLabel =
-				// Data label positioned based on bar direction
-				"<text id='text-delta-py-label' x='" & _XText & "' dx='" & _DX &
-				"' y='50%'>" & dataLabel & "</text>"
-		
-			VAR _SVG_TextDeltaPYLabelTotal =
-				// Simplified label for total rows (centered at axis)
-				"<text id='text-delta-py-total-label' x='" & _AxisYPosition &
-				"' dx='0' y='50%'>" & dataLabel & "</text>"
-		
-			VAR _SVG_Total =
-				// SVG for total rows (label only)
-				_SVG_Header & _SVG_Open & _SVG_DebugBox &
-				_SVG_TextDeltaPYLabelTotal & _SVG_Style & _SVG_Close
-		
-			VAR _SVG_Row =
-				// SVG for detail rows (with chart elements)
-				_SVG_Header & _SVG_Open & _SVG_SortBy & _SVG_DebugBox &
-				_SVG_AxisY & _SVG_BarDeltaPY & _SVG_TextDeltaPYLabel &
-				_SVG_Style & _SVG_Close
-		
-			VAR _Result =
-				// Choose between total row or detail row layout
-				IF ( isTotalRow, _SVG_Total, _SVG_Row )
-		
-			RETURN
-				_Result
-
-    annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
-
-    annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
-
-/// Creates a pin bar chart that shows the relative (%) variance between two values. The bar extends to the right for positive variances and to the left for negative variances. A vertical line represents the zero baseline. The bar color indicates favorable (green) vs unfavorable (red) variance, which can be flipped based on business impact. Data labels are positioned next to the bars, with alignment depending on the variance direction. The total row is handled separately (data label only). The outliers are presented with an arrow (triangle). The function includes an embedded sort key for proper sorting in Power BI visuals.
-/// @param {scalar} valueMain - relative variance as whole number, e.g., 15 for +15%: DIVIDE ( [AC] - [PY], [PY] ) * 100
-/// @param {string} dataLabel - formatted variance label, e.g., "+15": FORMAT ( DIVIDE ( [AC] - [PY], [PY] ) * 100, "+#,0;-#,0;=" )
-/// @param {boolean} isTotalRow - indicates if row is a total row: NOT ( ISINSCOPE ( 'Category'[Category] ) )
-/// @param {int64} imageWidth - 0 (default width 350px; use >0 for custom width in px)
-/// @param {int64} businessImpact - 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
-/// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
-function 'PowerofBI.IBCS.BarChart.RelativeVariance' =
         (
-            // relative variance as whole number, e.g., 15 for +15%: DIVIDE ( [AC] - [PY], [PY] ) * 100
-            valueMain: SCALAR VAL,
-
-            // formatted variance label, e.g., "+15": FORMAT ( DIVIDE ( [AC] - [PY], [PY] ) * 100, "+#,0;-#,0;=" )
-            dataLabel: STRING VAL,  
-
-            // indicates if row is a total row: NOT ( ISINSCOPE ( 'Category'[Category] ) )
-            isTotalRow: BOOLEAN VAL,
-
-            // 0 (default width 350px; use >0 for custom width in px)
+            // dimension in the rows: 'Payment Mode'[Payment Mode]
+            columnDimension: ANYREF EXPR,
+            // main value (actuals): [AC]
+            valueMain: SCALAR EXPR,
+            // secondary value (forecast), can be BLANK() if not used: [FC] or BLANK()
+            valueSecond: SCALAR EXPR,
+            // base value (previous year, budget) for comparison: [PY] or [BU]
+            valueBase: SCALAR EXPR,
+            // measure for scaling: b
+            valueScale: SCALAR EXPR,
+            // axis Y line styling: "grey" (single thick grey line) or "outlined" (two thin black lines)
+            baseType: STRING VAL,    
+            // is it a Total row: NOT ( ISINSCOPE ( 'Payment Mode'[Payment Mode] ) )
+            totalRow: BOOLEAN VAL,
+            // formatted data label: FORMAT ( [AC] + [FC] - [PY], "+#,0;-#,0;=" )
+            dataLabel: STRING VAL,
+            // image width, same as on the Format pane: 350
             imageWidth: INT64 VAL,
-
-            // 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
-            businessImpact: INT64 VAL            
-        ) 
-        =>
-            //=================================================================================================
-            // Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
-            // Project website: https://www.powerofbi.org/ibcs
-            // DAX Lib package:https://daxlib.org/package/PowerofBI.IBCS/
-            // PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
-            // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
-            // LinkedIn: https://www.linkedin.com/in/avatorl/
-            // The visualization design adheres to IBCS recommendations,
-            //      but this function is NOT produced, certified, authorized, or endorsed by IBCS®
-            // License: MIT License (free and permissive), https://en.wikipedia.org/wiki/MIT_License
-            //=================================================================================================
-
-            VAR _DEBUG = 0  
-                // When = 1, shows the entire SVG viewbox for debugging
-
-            VAR _minDelta = 0  
-                // Minimum variance considered in the scale (fixed at 0 for pin chart)
-
-            VAR _Rank =
-                1000000000000 +
-                ROUND( valueMain + 100, 0 )
-                // Rank embedded inside SVG to allow proper column sorting in Power BI
-
-            VAR _ValueFix =
-                MIN( 100, valueMain )
-                // Caps extremely large variances at 100% for visual consistency
-
-            VAR _ColorGrey  = "#C6C6C6"
-            VAR _ColorRed   = "#E24B20"
-            VAR _ColorGreen = "#08787D"
-
-            VAR _OutlinerTriangle =
-                UNICHAR(9656)
-                // Outlier triangle mark (Black Right-Pointing Small Triangle)
-
-            VAR _Em = 14 * 4 / 3  
-                // Font size converted from pt to px
-
-            VAR _FontWeight =
-                IF( isTotalRow, "bold", "normal" )
-                // Total rows are displayed in bold
-
-            VAR _maxValue = 70  
-                // Maximum variance scale for pin length normalization
-
-            VAR _SVG_Width =
-                IF( imageWidth > 0, imageWidth, 350 )
-                // SVG width (default: 350px)
-
-            VAR _SVG_LeftPadding  = 125
-                // Left padding before the baseline
-
-            VAR _SVG_RightPadding = 150
-                // Right padding for labels or additional icons
-
-            VAR _SVG_ColumnWidth =
-                _SVG_Width - _SVG_LeftPadding - _SVG_RightPadding
-                // Horizontal space available for rendering the pin
-
-            VAR _AxisYPosition =
-                _SVG_LeftPadding +
-                    IF(
-                        _minDelta >= 0,
-                        0,   // All values ≥ 0 → baseline stays left
-                        ROUND(
-                            DIVIDE( ABS(_minDelta), _maxValue ) * _SVG_ColumnWidth,
-                            0
-                        )
-                    )
-                // X-position of the baseline (PY) in px
-
-            VAR _WidthValue =
-                ROUND(
-                    DIVIDE( ABS(_ValueFix), _maxValue ) * _SVG_ColumnWidth,
-                    0
-                )
-                // Pin length representing variance magnitude
-
-            VAR _barColor =
-                IF( valueMain * businessImpact > 0, _ColorGreen, _ColorRed )
-                // Green for favorable, red for unfavorable (flipped by businessImpact)
-
-            VAR _X =
-                SWITCH(
-                    TRUE(),
-                    valueMain >= 0, _AxisYPosition,
-                    valueMain < 0,  _AxisYPosition - _WidthValue
-                )
-                // Starting X-coordinate for the pin bar
-
-            VAR _XPinhead =
-                SWITCH(
-                    TRUE(),
-                    valueMain >= 0,
-                        _AxisYPosition + _WidthValue - _Em * 0.4,
-                    valueMain < 0,
-                        _AxisYPosition - _WidthValue - _Em * 0.3
-                )
-                // X-position of the rectangular pin head
-
-            VAR _Anchor =
-                IF(
-                    isTotalRow,
-                    "middle",
-                    IF( valueMain >= 0, "start", "end" )
-                )
-                // Alignment of label text
-
-            VAR _DX =
-                SWITCH(
-                    TRUE(),
-                    valueMain >= 0,
-                        IF( valueMain > _ValueFix, _Em * 0.3, _Em * 0.7 ) + 5,
-                    valueMain < 0,
-                        -5
-                )
-                // Label offset in px
-            //=================================================================================================    
-            // SVG GENERATION: compose all parts of the pin chart
-            //=================================================================================================
-
-            VAR _SVG_Header = "data:image/svg+xml;utf8,"
-
-            VAR _SVG_Open =
-                "<svg xmlns='http://www.w3.org/2000/svg' width='" &
-                _SVG_Width & "' >"
-
-            VAR _SVG_Style =
-                // CSS styling for text and outlier marker elements
-                "<style>
-                text{
-                    font-family: Segoe UI, wf_segoe-ui_normal, sans-serif;
-                    font-size: " & _Em & "px;
-                    font-weight: " & _FontWeight & ";
-                    dominant-baseline: central;
-                    text-anchor: " & _Anchor & ";
-                }
-                #markoutlier{
-                    dominant-baseline: middle;
-                }
-            </style>"
-
-            VAR _SVG_Close = "</svg>"
-                // SVG closing tag
-
-            VAR _SVG_SortBy = "/*SortBy:" & _Rank & "*/"
-                // Hidden sort key
-
-            VAR _SVG_DebugBox =
-                // Debug overlay (when enabled)
-                IF(
-                    _DEBUG,
-                    "<rect id='rect-debug-box' x='0%' y='0%' width='100%' height='100%' 
-                        fill='#FFFFAA' stroke-width='1' stroke='#FF0000' />",
-                    ""
-                )
-
-            VAR _SVG_AxisY =
-                // Zero baseline vertical line
-                "<line id='line-axisy' x1='" & _AxisYPosition &
-                "' x2='" & _AxisYPosition &
-                "' y1='0%' y2='100%' stroke='" & _ColorGrey &
-                "' stroke-width='" & _Em * 0.3 & "'></line>"
-
-            VAR _SVG_BarDeltaPY =
-                // Base bar representing variance magnitude
-                "<rect id='rect-variancepin' x='" & _X &
-                "' width='" & _WidthValue & "' y='" & ( _Em * 0.6 + 2 ) &
-                "' height='" & _Em * 0.3 & "' fill='" & _barColor &
-                "' stroke='white' stroke-width='0.5'></rect>"
-
-            VAR _SVG_PinHead =
-                // Pin head marker (for normal variances)
-                "<rect id='rect-pinhead' x='" & _XPinhead &
-                "' width='" & _Em * 0.7 & "' y='" & ( _Em * 0.3 + 2 ) &
-                "' height='" & _Em * 0.9 & "' fill='#404040'></rect>"
-
-            VAR _SVG_TextDeltaPYLabel =
-                // Data label positioned next to pin
-                "<text id='text-label' text-anchor='" & _Anchor &
-                "' x='" & _XPinhead & "' dx='" & _DX &
-                "' y='50%'>" & dataLabel & "</text>"
-
-            VAR _SVG_Outliner =
-                // Triangle marker for outlier variances (capped at _ValueFix)
-                "<text id='markoutlier' x='" &
-                    ( _XPinhead + _Em * 0.55 * LEN(dataLabel) ) &
-                    "' dx='" & _DX & "' fill='" & _barColor &
-                    "' y='" & ( _Em * 0.85 + 2 ) & "'>" &
-                    _OutlinerTriangle & "</text>"
-
-            VAR _SVG_PinHeadX =
-                // Choose between pin head or outlier marker based on variance magnitude
-                IF(
-                    ISBLANK(valueMain),
-                    "",
-                    IF( valueMain > _ValueFix, _SVG_Outliner, _SVG_PinHead )
-                )
-
-            VAR _SVG_TextDeltaPYLabelTotal =
-                // Simplified label for total rows
-                "<text id='text-labeltotal' x='" & _AxisYPosition &
-                "' y='50%'>" & dataLabel & "</text>"
-
-            VAR _SVG_Total =
-                // SVG for total rows (label only)
-                _SVG_Header & _SVG_Open & _SVG_DebugBox &
-                _SVG_TextDeltaPYLabelTotal & _SVG_Style & _SVG_Close
-
-            VAR _SVG_Row =
-                // SVG for detail rows (with full chart)
-                _SVG_Header & _SVG_Open & _SVG_DebugBox &
-                _SVG_SortBy & _SVG_AxisY & _SVG_PinHeadX &
-                _SVG_BarDeltaPY & _SVG_TextDeltaPYLabel &
-                _SVG_Style & _SVG_Close
-
-            VAR _Result =
-                // Select appropriate SVG based on row type
-                IF( isTotalRow, _SVG_Total, _SVG_Row )
-
-            RETURN _Result
-
-    annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
-
-    annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
-
-/// Creates a column chart that shows actual values, previous year values, plan, forecast and variance bars. The actual value is shown as a solid bar, while the forecast is shown as a hatched bar (if actual is not available). The previous year and plan values are shown as reference bars. The function includes an embedded sort key for proper sorting in Power BI visuals.
-/// @param {scalar} valueAC - actual value, e.g., 5000: [AC]
-/// @param {scalar} valuePY - previous year value, e.g., 4500: [PY]
-/// @param {scalar} valuePL - plan/budget value, e.g., 4800: [PL]
-/// @param {scalar} valueFC - forecast value, e.g., 5200: [FC]
-/// @param {anyref} periodColumn - column that holds period for X-axis ('Date'[Month])
-/// @param {int64} businessImpact - 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
-/// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
-function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
-        (
-			// actual value, e.g., 5000: [AC]
-			valueAC: SCALAR EXPR,
-			// previous year value, e.g., 4500: [PY]
-			valuePY: SCALAR EXPR,
-			// plan/budget value, e.g., 4800: [PL]
-			valuePL: SCALAR EXPR,
-			// forecast value, e.g., 5200: [FC]
-			valueFC: SCALAR EXPR,
-			// column that holds period for X-axis ('Date'[Month])
-			periodColumn: ANYREF EXPR,
-			// 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
-			businessImpact: INT64 VAL
+            // image height, same as on the Format pane: 35
+            imageHeight: INT64 VAL,
+            // business impact of variance > 0: 1 (positive, sales) or -1 (negative, cost)
+            businessImpact: INT64 VAL
         ) =>
             //=================================================================================================
             // Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
             // Project website: https://www.powerofbi.org/ibcs
-            // DAX Lib package:https://daxlib.org/package/PowerofBI.IBCS/
-            // PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
             // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
             // LinkedIn: https://www.linkedin.com/in/avatorl/
             // The visualization design adheres to IBCS recommendations,
             //      but this function is NOT produced, certified, authorized, or endorsed by IBCS®
-            // License: MIT License (free and permissive), https://en.wikipedia.org/wiki/MIT_License
+            // License: MIT License (free and permissive)
             //=================================================================================================
+            //
+            //=================================================================================================
+            // CONFIGURATION and CALCULATIONS
+            //=================================================================================================
+            // When = 1, draws a rectangle showing the SVG boundaries (useful during layout tuning)
+            VAR _DEBUG = 0
 
+            // Grey color for the vertical axis line
+            VAR _ColorGrey = "#C6C6C6"
+
+            // Red color for negative business impact
+            VAR _ColorRed = "#E24B20"
+
+            // Green color for positive business impact
+            VAR _ColorGreen = "#08787D"
+
+            // Outline width applied to bar borders
+            VAR _OutlineWidth = 0.5
+
+            // Combined value (actuals + forecast); BLANK() is treated as 0
+            VAR _ValueCombined =
+                valueMain + valueSecond
+
+            // Variance between combined value and base ([AC] + [FC] - [PY])
+            VAR _Variance = _ValueCombined - valueBase
+
+            // Whether the bar should be hatched (secondary value is not blank)
+            VAR _IsHatched = NOT ( ISBLANK ( valueSecond ) )
+
+            // Font size in px (also determines size and positioning of other chart elements)
+            VAR _Em = imageHeight * 0.6
+
+            // Vertical placement of the variance bar
+            VAR _mainBarYPosition = ( imageHeight - _Em ) / 2
+
+            // Horizontal offset between the bar end and the data label
+            VAR _LabelOffset = _Em * 0.15
+
+            // Is it a total row?
+            VAR _IsTotalRow = totalRow
+
+            // Total rows are emphasized with bold text
+            VAR _FontWeight = IF ( _IsTotalRow, "bold", "normal" )
+
+            // Minimum variance across the entire dimension (ALLSELECTED)
+            VAR _ValueMin =
+                MINX (
+                    ALLSELECTED ( columnDimension ),
+                    ( valueMain + valueSecond )
+                        - valueBase
+                )
+
+            // Maximum variance across the entire dimension (ALLSELECTED)
+            VAR _ValueMax = 
+                MAXX (
+                    ALLSELECTED ( columnDimension ),
+                    valueScale
+                )
+
+            // Enables sorting in Power BI by embedding a sortable rank inside bbbb
+            //      so including the rank as a comment at the beginning of the SVG code ensures correct sorting by variance
+            VAR _Rank = 1000000000000 + ROUND ( _Variance + ABS ( _ValueMin ), 0 )
+
+            // Space available for the horizontal variance bar (35% of image width)
+            VAR _MaxRectWidth = imageWidth * 0.35
+
+            // Scaling factor: pixels per data unit, using max from ALLSELECTED scope
+            VAR _Scale = DIVIDE ( _MaxRectWidth, _ValueMax )
+
+            //=================================================================================================
+            // SCALING: Calculate bar dimensions and baseline position
+            //=================================================================================================
+            // X-position of the zero baseline in the diverging bar chart
+            VAR _AxisYPosition = imageWidth / 2
+
+            // Width of the bar representing the variance
+            VAR _WidthValue = ROUND ( ABS ( _Variance ) * _Scale, 0 )
+
+            // Green for favorable, red for unfavorable (flipped by businessImpact)
+            VAR _BarColor =
+                IF ( _Variance * businessImpact > 0, _ColorGreen, _ColorRed )
+
+            // Bar fill: hatched pattern when secondary value present, solid otherwise
+            VAR _BarFill =
+                IF (
+                    _IsHatched,
+                    IF (
+                        _Variance * businessImpact > 0,
+                        "url(#hatch-green)",
+                        "url(#hatch-red)"
+                    ),
+                    _BarColor
+                )
+
+            // Bar stroke: solid color when hatched (visible outline), white when solid
+            VAR _BarStroke = IF ( _IsHatched, _BarColor, "white" )
+
+            // X-position of the bar start (left edge)
+            VAR _X =
+                SWITCH (
+                    TRUE ( ),
+                    _Variance >= 0, _AxisYPosition,
+                    _Variance < 0, _AxisYPosition - _WidthValue
+                )
+
+            // X-position of the data label
+            VAR _XText =
+                SWITCH (
+                    TRUE ( ),
+                    _Variance >= 0, _AxisYPosition + _WidthValue,
+                    _Variance < 0, _X
+                )
+
+            // Text anchor: determines horizontal alignment of the data label ('start' flows right, 'end' flows left)
+            VAR _Anchor = IF ( _Variance >= 0, "start", "end" )
+
+            // Horizontal offset of the data label relative to the anchor
+            VAR _DX =
+                SWITCH (
+                    TRUE ( ),
+                    _Variance >= 0, _LabelOffset,
+                    _Variance < 0, -_LabelOffset
+                )
+
+            //=================================================================================================
+            // SVG GENERATION: Build all SVG components
+            //=================================================================================================
+            //=================================================================================================
+            // PowerofBI.IBCS.BarChart.AbsoluteVariance function generates the following visual elements:
+            //     • Zero baseline: grey line (baseType="grey") or two thin black outlined lines (baseType="outlined")
+            //     • Diverging bar: green (favorable) or red (unfavorable) variance
+            //       — solid fill when only valueMain is used
+            //       — hatched fill with colored outline when valueSecond is not blank
+            //     • Data label positioned to the right (positive) or left (negative) of the bar
+            //=================================================================================================
+            // MIME type prefix for inline SVG data URI
+            VAR _SVG_Header = "data:image/svg+xml;utf8,"
+
+            // SVG root element with width and height attributes
+            VAR _SVG_Open =
+                "<svg xmlns='http://www.w3.org/2000/svg' width='"
+                    & imageWidth
+                    & "' height='"
+                    & imageHeight
+                    & "'"
+                    & " >"
+
+            // SVG closing tag
+            VAR _SVG_Close = "</svg>"
+
+            // CSS style for text elements
+            VAR _SVG_Style =
+                ( "<style>
+                        text {
+                            font-family: 'Segoe UI', sans-serif;
+                            font-size: "
+                    & _Em
+                    & "px;
+                            font-weight: "
+                    & _FontWeight
+                    & ";
+                            dominant-baseline: central;
+                        }
+                    </style>" )
+
+            // Hatched pattern definitions for green and red variance bars
+            VAR _SVG_HatchedPatterns =
+                IF (
+                    _IsHatched,
+                    "/*hatched pattern*/
+                                <defs>
+                                    <pattern id='hatch-green' patternUnits='userSpaceOnUse' width='8' height='8'>
+                                        <rect x='0' y='0' width='8' height='8' fill='#FFFFFF' stroke-width='0' />
+                                        <path d='M-2,2 l4,-4 M0,8 l8,-8 M6,10 l4,-4' style='stroke:"
+                        & _ColorGreen
+                        & "; stroke-width:2' />
+                                    </pattern>
+                                    <pattern id='hatch-red' patternUnits='userSpaceOnUse' width='8' height='8'>
+                                        <rect x='0' y='0' width='8' height='8' fill='#FFFFFF' stroke-width='0' />
+                                        <path d='M-2,2 l4,-4 M0,8 l8,-8 M6,10 l4,-4' style='stroke:"
+                        & _ColorRed
+                        & "; stroke-width:2' />
+                                    </pattern>
+                                </defs>",
+                    ""
+                )
+
+            // Comment-based sort key injected into SVG for sorting by a column with embedded SVG
+            VAR _SVG_SortBy = "/*SortBy:" & _Rank & "*/"
+
+            // Debug overlay to visualize available drawing area
+            VAR _SVG_DebugBox =
+                IF (
+                    _DEBUG,
+                    "<rect id='rect-debug-box' x='0%' y='0%' width='100%' height='100%' fill='#FFFFAA' stroke-width='1' stroke='#FF0000' />
+                            <rect id='rect-debug-box' x='0%' y='0%' width='50%' height='100%' fill='#FFFFAA' stroke-width='1' stroke='#FF0000' />",
+                    ""
+                )
+
+            // Axis Y line width (used for both grey and outlined variants)
+            VAR _AxisWidth = _Em * 0.3
+
+            // Zero baseline vertical line(s) at calculated position
+            // "grey" = single thick grey line; "outlined" = two thin black lines
+            VAR _SVG_AxisY =
+                SWITCH (
+                    baseType,
+                    "outlined",
+                        "<line id='line-axis-y-left' x1='"
+                            & ( _AxisYPosition - _AxisWidth / 2 )
+                            & "' x2='"
+                            & ( _AxisYPosition - _AxisWidth / 2 )
+                            & "' y1='0%' y2='100%' stroke='#000000' stroke-width='"
+                            & _OutlineWidth
+                            & "'></line>"
+                            & "<line id='line-axis-y-right' x1='"
+                            & ( _AxisYPosition + _AxisWidth / 2 )
+                            & "' x2='"
+                            & ( _AxisYPosition + _AxisWidth / 2 )
+                            & "' y1='0%' y2='100%' stroke='#000000' stroke-width='"
+                            & _OutlineWidth
+                            & "'></line>",
+                    -- default: grey
+                    "<line id='line-axis-y' x1='" & _AxisYPosition & "' x2='"
+                        & _AxisYPosition
+                        & "' y1='0%' y2='100%' stroke='"
+                        & _ColorGrey
+                        & "' stroke-width='"
+                        & _AxisWidth
+                        & "'></line>"
+                )
+
+            // Variance bar: extends right for positive, left for negative variance
+            // Solid fill (green/red) or hatched pattern depending on valueSecond
+            VAR _SVG_BarDeltaPY =
+                "<rect id='rect-bar-delta-py' x='" & _X & "' width='"
+                    & _WidthValue
+                    & "' y='"
+                    & _mainBarYPosition
+                    & "' height='"
+                    & _Em
+                    & "' fill='"
+                    & _BarFill
+                    & "' stroke='"
+                    & _BarStroke
+                    & "' stroke-width='"
+                    & _OutlineWidth
+                    & "'></rect>"
+
+            // Data label positioned based on bar direction, with text-anchor for alignment
+            VAR _SVG_TextDeltaPYLabel =
+                "<text id='text-delta-py-label' text-anchor='" & _Anchor
+                    & "' x='"
+                    & _XText
+                    & "' dx='"
+                    & _DX
+                    & "' y='"
+                    & ( imageHeight / 2 - _Em * 0.05 )
+                    & "'>"
+                    & dataLabel
+                    & "</text>"
+
+            // Data label for total rows (centered at the baseline)
+            VAR _SVG_TextDeltaPYLabelTotal =
+                "<text id='text-delta-py-total-label' text-anchor='middle' x='"
+                    & _AxisYPosition
+                    & "' dx='0' y='50%'>"
+                    & dataLabel
+                    & "</text>"
+
+            // SVG markup for total rows (label only, no chart)
+            VAR _SVG_Total =
+                _SVG_Header & _SVG_Open & _SVG_DebugBox & _SVG_Style
+                    & _SVG_TextDeltaPYLabelTotal
+                    & _SVG_Close
+
+            // SVG markup for detail rows (with all chart elements)
+            VAR _SVG_Row =
+                _SVG_Header & _SVG_Open & _SVG_Style & _SVG_SortBy
+                    & _SVG_DebugBox
+                    & _SVG_HatchedPatterns
+                    & _SVG_AxisY
+                    & _SVG_BarDeltaPY
+                    & _SVG_TextDeltaPYLabel
+                    & _SVG_Close
+
+            // Two different output modes:
+            //   • _SVG_Total → total row with data label only
+            //   • _SVG_Row   → detail row with full chart rendering
+            VAR _Result = IF ( _IsTotalRow, _SVG_Total, _SVG_Row )
+            RETURN
+                _Result
+
+    annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
+
+    annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
+
+/// Creates a bar chart that shows the relative (%) variance between two values
+/// @param {anyref} columnDimension - dimension in the rows: 'Payment Mode'[Payment Mode]
+/// @param {scalar} valueMain - main value (actuals): [AC]
+/// @param {scalar} valueSecond - secondary value (forecast), can be BLANK() if not used: [FC] or BLANK()
+/// @param {scalar} valueBase - base value (previous year, budget) for comparison: [PY] or [BU]
+/// @param {string} baseType - axis Y line styling: "grey" (single thick grey line) or "outlined" (two thin black lines)
+/// @param {boolean} totalRow - is it a Total row: NOT ( ISINSCOPE ( 'Payment Mode'[Payment Mode] ) )
+/// @param {string} dataLabel - formatted data label: FORMAT ( DIVIDE ( [AC] + [FC] - [PY], [PY] ) * 100, "+#,0;-#,0;=" )
+/// @param {int64} imageWidth - image width, same as on the Format pane: 350
+/// @param {int64} imageHeight - image height, same as on the Format pane: 35
+/// @param {int64} businessImpact - business impact of variance > 0: 1 (positive, sales) or -1 (negative, cost)
+/// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
+function 'PowerofBI.IBCS.BarChart.RelativeVariance' =
+        (
+            // dimension in the rows: 'Payment Mode'[Payment Mode]
+            columnDimension: ANYREF EXPR,
+            // main value (actuals): [AC]
+            valueMain: SCALAR EXPR,
+            // secondary value (forecast), can be BLANK() if not used: [FC] or BLANK()
+            valueSecond: SCALAR EXPR,
+            // base value (previous year, budget) for comparison: [PY] or [BU]
+            valueBase: SCALAR EXPR,
+            // axis Y line styling: "grey" (single thick grey line) or "outlined" (two thin black lines)
+            baseType: STRING VAL,
+            // is it a Total row: NOT ( ISINSCOPE ( 'Payment Mode'[Payment Mode] ) )
+            totalRow: BOOLEAN VAL,    
+            // formatted data label: FORMAT ( DIVIDE ( [AC] + [FC] - [PY], [PY] ) * 100, "+#,0;-#,0;=" )
+            dataLabel: STRING VAL,
+            // image width, same as on the Format pane: 350
+            imageWidth: INT64 VAL,
+            // image height, same as on the Format pane: 35
+            imageHeight: INT64 VAL,
+            // business impact of variance > 0: 1 (positive, sales) or -1 (negative, cost)
+            businessImpact: INT64 VAL
+        ) =>
+            //=================================================================================================
+            // Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
+            // Project website: https://www.powerofbi.org/ibcs
+            // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
+            // LinkedIn: https://www.linkedin.com/in/avatorl/
+            // The visualization design adheres to IBCS recommendations,
+            //      but this function is NOT produced, certified, authorized, or endorsed by IBCS®
+            // License: MIT License (free and permissive)
+            //=================================================================================================
+            //
+            //=================================================================================================
+            // CONFIGURATION and CALCULATIONS
+            //=================================================================================================
+            // When = 1, draws a rectangle showing the SVG boundaries (useful during layout tuning)
+            VAR _DEBUG = 0
+
+            // Grey color for the vertical axis line
+            VAR _ColorGrey = "#C6C6C6"
+
+            // Red color for negative business impact
+            VAR _ColorRed = "#E24B20"
+
+            // Green color for positive business impact
+            VAR _ColorGreen = "#08787D"
+
+            // Outlier triangle mark (Black Right-Pointing Small Triangle)
+            VAR _OutlierTriangle = UNICHAR ( 9656 )
+
+            // Outline width applied to bar borders
+            VAR _OutlineWidth = 0.5
+
+            // Combined value (actuals + forecast); BLANK() is treated as 0
+            VAR _ValueCombined =
+                valueMain + valueSecond
+
+            // Special case: NEW item (positive combined value with no base for comparison)
+            VAR _IsNew =
+                _ValueCombined > 0
+                    && ( valueBase = 0
+                    || ISBLANK ( valueBase ) )
+
+            // Variance between combined value and base ([AC] + [FC] - [PY])
+            VAR _Variance = _ValueCombined - valueBase
+
+            // Whether the pinhead should be hatched (secondary value is present)
+            VAR _IsHatched = NOT ISBLANK ( valueSecond )
+
+            // Variance between combined value and base in %
+            VAR _VariancePct =
+                ROUND (
+                    DIVIDE ( _Variance, valueBase ) * 100,
+                    0
+                )
+
+            // Minimum variance across the entire dimension (ALLSELECTED)
+            VAR _ValueMin =
+                MINX (
+                    ALLSELECTED ( columnDimension ),
+                    ( valueMain + valueSecond )
+                        - valueBase
+                )
+
+            // Maximum variance across the entire dimension (ALLSELECTED)
+            VAR _ValueMax =
+                MAXX (
+                    ALLSELECTED ( columnDimension ),
+                    ( valueMain + valueSecond )
+                        - valueBase
+                )
+
+            // Enables sorting in Power BI by embedding a sortable rank inside the SVG code
+            // Power BI sorts SVG images based on their text content,
+            //      so including the rank as a comment at the beginning of the SVG code ensures correct sorting by variance
+            VAR _Rank =
+                1000000000000 + ROUND ( _Variance + ABS ( _ValueMin ), 0 )
+
+            // Caps extremely large variances at 100% for visual consistency
+            VAR _ValueFix = MIN ( 100, _VariancePct )
+
+            // Font size in px (also determines size and positioning of other chart elements)
+            VAR _Em = imageHeight * 0.6
+
+            // Is it a total row?
+            VAR _IsTotalRow = totalRow
+
+            // Total rows are emphasized with bold text
+            VAR _FontWeight = IF ( _IsTotalRow, "bold", "normal" )
+
+            // Horizontal space available for rendering the pin
+            VAR _SVG_ColumnWidth = imageWidth - _Em * 3
+
+            // X-position of the zero baseline in the diverging bar chart
+            VAR _AxisYPosition = imageWidth / 2
+
+            // Pin length representing variance magnitude
+            VAR _WidthValue =
+                ROUND (
+                    DIVIDE ( ABS ( _ValueFix ), _ValueMax ) * _SVG_ColumnWidth,
+                    0
+                )
+
+            // Green for favorable, red for unfavorable (flipped by businessImpact)
+            VAR _BarColor =
+                IF ( _Variance * businessImpact > 0, _ColorGreen, _ColorRed )
+
+            // Starting X-coordinate for the pin bar
+            VAR _X =
+                SWITCH (
+                    TRUE ( ),
+                    _Variance >= 0, _AxisYPosition,
+                    _Variance < 0, _AxisYPosition - _WidthValue
+                )
+
+            // X-position of the rectangular pin head
+            VAR _XPinhead =
+                SWITCH (
+                    TRUE ( ),
+                    _Variance >= 0, _AxisYPosition + _WidthValue - _Em * 0.4,
+                    _Variance < 0, _AxisYPosition - _WidthValue - _Em * 0.3
+                )
+
+            // Text anchor: determines horizontal alignment of the data label ('start' flows right, 'end' flows left)
+            VAR _Anchor =
+                IF (
+                    _IsTotalRow,
+                    "middle",
+                    IF ( _Variance >= 0 || _IsNew, "start", "end" )
+                )
+
+            // Horizontal offset of the data label relative to the anchor
+            VAR _DX =
+                SWITCH (
+                    TRUE ( ),
+                    _IsNew, _Em * 0.3,
+                    _Variance >= 0,
+                        IF ( _Variance > _ValueFix, _Em * 0.5, _Em * 0.7 ) + 5,
+                    _Variance < 0, -5
+                )
+
+            // Actual text to display: "NEW" for new items, dataLabel otherwise
+            VAR _LabelText = IF ( _IsNew, "NEW", dataLabel )
+
+            //=================================================================================================
+            // SVG GENERATION: Build all SVG components
+            //=================================================================================================
+            //=================================================================================================
+            // PowerofBI.IBCS.BarChart.RelativeVariance function generates the following visual elements:
+            //     • Zero baseline: grey line (baseType="grey") or two thin black outlined lines (baseType="outlined")
+            //     • Pin bar: thin colored bar representing variance magnitude
+            //     • Pin head: solid black rectangle (or hatched when valueSecond is present)
+            //       at the end of the pin (or outlier triangle if capped)
+            //     • Data label positioned next to the pin
+            //     • Special case: "NEW" label for items with positive combined value but no base value
+            //=================================================================================================
+            // MIME type prefix for inline SVG data URI
+            VAR _SVG_Header = "data:image/svg+xml;utf8,"
+
+
+            // SVG root element with width and height attributes
+            VAR _SVG_Open =
+                "<svg xmlns='http://www.w3.org/2000/svg' width='"
+                    & imageWidth
+                    & "' height='"
+                    & imageHeight
+                    & "'"
+                    & " >"
+
+            // SVG closing tag
+            VAR _SVG_Close = "</svg>"
+
+            // CSS style for text elements
+            VAR _SVG_Style =
+                ( "<style>
+                        text {
+                            font-family: 'Segoe UI', wf_segoe-ui_normal, sans-serif;
+                            font-size: "
+                    & _Em
+                    & "px;
+                            font-weight: "
+                    & _FontWeight
+                    & ";
+                            dominant-baseline: central;
+                        }
+                    </style>" )
+
+
+            // Hatched pattern definition for pinhead (black diagonal stripes, used when valueSecond is present)
+            VAR _SVG_HatchedPattern =
+                IF (
+                    _IsHatched,
+                    "/*hatched pattern*/
+                                <defs>
+                                    <pattern id='diagonal-stripe' patternUnits='userSpaceOnUse' width='8' height='8'>
+                                        <rect x='0' y='0' width='8' height='8' fill='#FFFFFF' stroke-width='0' />
+                                        <path d='M-2,2 l4,-4 M0,8 l8,-8 M6,10 l4,-4' style='stroke:black; stroke-width:2' />
+                                    </pattern>
+                                </defs>",
+                    ""
+                )
+
+            // Comment-based sort key injected into SVG for sorting by a column with embedded SVG
+            VAR _SVG_SortBy = "/*SortBy:" & _Rank & "*/"
+
+            // Debug overlay to visualize available drawing area
+            VAR _SVG_DebugBox =
+                IF (
+                    _DEBUG,
+                    "<rect id='rect-debug-box' x='0%' y='0%' width='100%' height='100%' fill='#FFFFAA' stroke-width='1' stroke='#FF0000' />
+                    <rect id='rect-debug-box' x='0%' y='0%' width='"
+                        & imageWidth
+                        & "' height='100%' fill='#FFFFAA' stroke-width='1' stroke='#FF0000' />
+                    <rect id='rect-debug-box' x='0%' y='0%' width='"
+                        & imageWidth / 2
+                        & "' height='100%' fill='#FFFFAA' stroke-width='1' stroke='#FF0000' />",
+                    ""
+                )
+
+            // Axis Y line width (used for both grey and outlined variants)
+            VAR _AxisWidth = _Em * 0.3
+
+            // Zero baseline vertical line(s) at calculated position
+            // "grey" = single thick grey line; "outlined" = two thin black lines
+            VAR _SVG_AxisY =
+                SWITCH (
+                    baseType,
+                    "outlined",
+                        "<line id='line-axis-y-left' x1='"
+                            & ( _AxisYPosition - _AxisWidth / 2 )
+                            & "' x2='"
+                            & ( _AxisYPosition - _AxisWidth / 2 )
+                            & "' y1='0%' y2='100%' stroke='#000000' stroke-width='"
+                            & _OutlineWidth
+                            & "'></line>"
+                            & "<line id='line-axis-y-right' x1='"
+                            & ( _AxisYPosition + _AxisWidth / 2 )
+                            & "' x2='"
+                            & ( _AxisYPosition + _AxisWidth / 2 )
+                            & "' y1='0%' y2='100%' stroke='#000000' stroke-width='"
+                            & _OutlineWidth
+                            & "'></line>",
+                    -- default: grey
+                    "<line id='line-axis-y' x1='" & _AxisYPosition & "' x2='"
+                        & _AxisYPosition
+                        & "' y1='0%' y2='100%' stroke='"
+                        & _ColorGrey
+                        & "' stroke-width='"
+                        & _AxisWidth
+                        & "'></line>"
+                )
+
+            // Pin bar: thin colored bar representing variance magnitude
+            VAR _SVG_BarDeltaPY =
+                "<rect id='rect-variance-pin' x='" & _X & "' width='"
+                    & _WidthValue
+                    & "' y='"
+                    & ( _Em * 0.6 + 2 )
+                    & "' height='"
+                    & _Em * 0.3
+                    & "' fill='"
+                    & _BarColor
+                    & "' stroke='white' stroke-width='0.5'></rect>"
+
+            // Pinhead fill: hatched when secondary value is present, solid black otherwise
+            VAR _PinheadFill =
+                IF ( _IsHatched, "url(#diagonal-stripe)", "#404040" )
+
+            // Pinhead stroke: black outline when hatched, none when solid
+            VAR _PinheadStroke = IF ( _IsHatched, "#404040", "none" )
+
+            // Pin head marker (solid black or hatched rectangle for normal variances)
+            VAR _SVG_PinHead =
+                "<rect id='rect-pinhead' x='" & _XPinhead & "' width='"
+                    & _Em * 0.7
+                    & "' y='"
+                    & ( _Em * 0.3 + 2 )
+                    & "' height='"
+                    & _Em * 0.9
+                    & "' fill='"
+                    & _PinheadFill
+                    & "' stroke='"
+                    & _PinheadStroke
+                    & "' stroke-width='"
+                    & _OutlineWidth
+                    & "'></rect>"
+
+            // Data label positioned next to pin, with text-anchor for alignment
+            // For NEW items: positioned to the right of the axis line
+            VAR _SVG_TextDeltaPYLabel =
+                IF (
+                    _IsNew,
+                    "<text id='text-label' text-anchor='" & _Anchor & "' x='"
+                        & _AxisYPosition
+                        & "' dx='"
+                        & _DX
+                        & "' y='"
+                        & ( imageHeight / 2 - _Em * 0.05 )
+                        & "'>"
+                        & _LabelText
+                        & "</text>",
+                    "<text id='text-label' text-anchor='" & _Anchor & "' x='"
+                        & _XPinhead
+                        & "' dx='"
+                        & _DX
+                        & "' y='"
+                        & ( imageHeight / 2 - _Em * 0.05 )
+                        & "'>"
+                        & _LabelText
+                        & "</text>"
+                )
+
+            // Triangle marker for outlier variances (when value exceeds _ValueFix cap)
+            VAR _SVG_Outlier =
+                "<text id='markoutlier' dominant-baseline='middle' x='"
+                    & ( _XPinhead + _Em * 0.55 * LEN ( dataLabel ) )
+                    & "' dx='"
+                    & _DX
+                    & "' fill='"
+                    & _BarColor
+                    & "' y='"
+                    & ( _Em * 0.85 + 2 )
+                    & "'>"
+                    & _OutlierTriangle
+                    & "</text>"
+
+            // Choose between pin head or outlier marker based on variance magnitude
+            // Do not show pin/pinhead for NEW items
+            VAR _SVG_PinHeadX =
+                IF (
+                    _IsNew,
+                    "",
+                    IF (
+                        ISBLANK ( _VariancePct ),
+                        "",
+                        IF ( _VariancePct > _ValueFix, _SVG_Outlier, _SVG_PinHead )
+                    )
+                )
+
+            // Data label for total rows (centered at the baseline)
+            VAR _SVG_TextDeltaPYLabelTotal =
+                "<text id='text-label-total' text-anchor='middle' x='"
+                    & _AxisYPosition
+                    & "' y='50%'>"
+                    & _LabelText
+                    & "</text>"
+
+            // SVG markup for total rows (label only, no chart)
+            VAR _SVG_Total =
+                _SVG_Header & _SVG_Open & _SVG_Style & _SVG_DebugBox
+                    & _SVG_TextDeltaPYLabelTotal
+                    & _SVG_Close
+
+            // SVG markup for detail rows (with all chart elements)
+            VAR _SVG_Row =
+                _SVG_Header & _SVG_Open & _SVG_Style & _SVG_SortBy
+                    & _SVG_DebugBox
+                    & _SVG_HatchedPattern
+                    & _SVG_AxisY
+                    & _SVG_PinHeadX
+                    & _SVG_BarDeltaPY
+                    & _SVG_TextDeltaPYLabel
+                    & _SVG_Close
+
+            // Two different output modes:
+            //   • _SVG_Total → total row with data label only
+            //   • _SVG_Row   → detail row with full chart rendering
+            VAR _Result = IF ( _IsTotalRow, _SVG_Total, _SVG_Row )
+            RETURN
+                _Result
+
+    annotation DAXLIB_PackageId = __PLACEHOLDER_PACKAGE_ID__
+
+    annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
+
+/// Creates a column chart that shows actual values, previous period values, plan, forecast and variance bars
+/// @param {scalar} valueAC
+/// usage example: [AC] (actual value, e.g., 5000)
+/// @param {scalar} valuePY
+/// usage example: [PY] (previous year value, e.g., 4500)
+/// @param {scalar} valuePL
+/// usage example: [PL] (plan/budget value, e.g., 4800)
+/// @param {scalar} valueFC
+/// usage example: [FC] (forecast value, e.g., 5200)
+/// @param {anyref} periodColumn
+/// usage example: 'Date'[Month] (column that holds period for X-axis)
+/// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
+function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
+        (
+			// Actual Value
+			valueAC: SCALAR EXPR,
+			// Previous Year Value
+			valuePY: SCALAR EXPR,
+			// Plan (Budget) Value
+			valuePL: SCALAR EXPR,
+			// Forecast Value
+			valueFC: SCALAR EXPR,
+			// Column that holds period (Month)
+			periodColumn: ANYREF EXPR
+        ) =>
+		    //=================================================================================================
+		    // Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
+		    // Project Description: https://www.powerofbi.org/ibcs
+		    // DAX Lib package: https://daxlib.org/package/PowerofBI.IBCS/
+		    // PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
+		    // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
+		    // LinkedIn: https://www.linkedin.com/in/avatorl/
+		    // The visualization design adheres to IBCS recommendations: https://www.ibcs.com/ibcs-standards-1-2/
+		    //      but is NOT produced, certified, authorized, or endorsed by IBCS®
+		    //=================================================================================================
+		    // License: MIT License (free and permissive)
+		    // https://en.wikipedia.org/wiki/MIT_License
+		    //=================================================================================================
+		    //=================================================================================================
+		    // PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance function:
+		    //   This UDF renders an IBCS-styled vertical column chart for monthly values with variance markers.
+		    //
+		    //   Features include:
+		    //     • Actuals as solid black columns; forecasts as hatched columns when actuals are blank
+		    //     • Plan (budget) as outlined white columns and previous year as grey triangles
+		    //     • Red/green variance bar comparing AC/FC against plan
+		    //     • Data labels above bars and period labels beneath the plot, scaled across ALLSELECTED periods
+		    //=================================================================================================
+		    
             //===============================================
             // 1. INPUT CALCULATIONS AND CONTEXT
             //===============================================
@@ -842,13 +1160,13 @@ function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
             // 3. VALUE-TO-PIXEL CONVERSIONS
             //===============================================
             
-            VAR _HeightACFC = DIVIDE ( valueACFC, _MaxValue ) * _SVG_Body  // AC/FC bar height in pixels
+            VAR _HeightACFC = (valueACFC / _MaxValue) * _SVG_Body  // AC/FC bar height in pixels
             VAR _YACFC = _SVG_Body - _HeightACFC + _SVG_Header  // AC/FC bar Y position
             
-            VAR _HeightPL = DIVIDE ( valuePL, _MaxValue ) * _SVG_Body  // Plan bar height in pixels
+            VAR _HeightPL = (valuePL / _MaxValue) * _SVG_Body  // Plan bar height in pixels
             VAR _YPL = _SVG_Body - _HeightPL + _SVG_Header  // Plan bar Y position
             
-            VAR _HeightPY = DIVIDE ( valuePY, _MaxValue ) * _SVG_Body  // PY bar height in pixels
+            VAR _HeightPY = (valuePY / _MaxValue) * _SVG_Body  // PY bar height in pixels
             VAR _YPY = _SVG_Body - _HeightPY + _SVG_Header  // PY bar Y position
             
             //===============================================
@@ -897,8 +1215,8 @@ function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
                     IF(valueACFC >= valuePL, 1, 1 + _ColumnWidth) & "' width='" & _ColumnShift & "' y='" &
                     MIN(_YACFC, _YPL) & "' height='" & 
                     ABS(_YACFC - _YPL) & "' stroke-width='1' stroke='" & 
-                    IF((valueACFC - valuePL) * businessImpact >= 0, _ColorGreen, _ColorRed) & "' fill='" & 
-                    IF((valueACFC - valuePL) * businessImpact >= 0, _ColorGreen, _ColorRed) & "'></rect>"
+                    IF(valueACFC >= valuePL, _ColorGreen, _ColorRed) & "' fill='" & 
+                    IF(valueACFC >= valuePL, _ColorGreen, _ColorRed) & "'></rect>"
             
             VAR _SVGvaluePY =
                 // Previous Year: grey triangle
@@ -946,43 +1264,51 @@ function 'PowerofBI.IBCS.ColumnChart.WithAbsoluteVariance' =
 
     annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
-/// Creates a pie chart (SVG image) showing percentage of total (e.g., "21%"). The pie chart consists of a filled black segment representing the percentage value and a grey background segment for the remainder. The data label is displayed to the left of the pie. The function includes an embedded sort key for proper sorting in Power BI visuals. The pie chart can be toggled on or off, allowing for a clean display of just the percentage label if desired.
-/// @param {double} valueMain - percentage as decimal, e.g., 0.25 for 25%: DIVIDE ( [AC], CALCULATE ( [AC], ALLSELECTED ( 'Category'[Category] ) ) )
-/// @param {string} dataLabel - formatted percentage label, e.g., "25%": FORMAT ( valueMain, "#,0%" )
-/// @param {boolean} isTotalRow - indicates if row is a total row: NOT ( ISINSCOPE ( 'Category'[Category] ) )
-/// @param {boolean} showPieChart - toggle to display the pie chart or not: TRUE ()
-/// @param {int64} fontSize - 0 (font size in points for data label; 0 = default 14pt)
-/// @param {int64} imageWidth - 0 (default width 350px; use >0 for custom width in px)
+/// Creates a pie chart (SVG image) showing percentage of total (e.g., "21%")
+/// @param {double} valueMain
+/// usage example: DIVIDE ( [AC], CALCULATE ( [AC], ALLSELECTED ( 'Payment Mode'[Payment Mode] ) ) ) (percentage as decimal, e.g., 0.25 for 25%)
+/// @param {string} dataLabel
+/// usage example: FORMAT ( valueMain, "#,0%" ) (formatted percentage label, e.g., "25%")
+/// @param {boolean} isTotalRow
+/// usage example: NOT ( ISINSCOPE ( 'Payment Mode'[Payment Mode] ) ) (indicates if row is a total row)
+/// @param {boolean} showPieChart
+/// usage example: TRUE () (toggle to display the pie chart or not)
+/// @param {int64} fontSize
+/// usage example: 0 (font size in points for data label; 0 = default 14pt)
+/// @param {int64} imageWidth
+/// usage example: 0 (default width 350px; use >0 for custom width in px)
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.Extras.PieChart.PctOfTotal' =
 		(
-			// percentage as decimal, e.g., 0.25 for 25%: DIVIDE ( [AC], CALCULATE ( [AC], ALLSELECTED ( 'Category'[Category] ) ) )
+			// Main value as a decimal fraction (e.g., 0.21 for 21%)
 			valueMain: DOUBLE VAL,
-			// formatted percentage label, e.g., "25%": FORMAT ( valueMain, "#,0%" )
+			// Text label to show, formatted value (e.g., "21%")
 			dataLabel: STRING VAL,
-			// indicates if row is a total row: NOT ( ISINSCOPE ( 'Category'[Category] ) )
+			// Indicates whether the current row is a total row
 			isTotalRow: BOOLEAN VAL,
-			// toggle to display the pie chart or not: TRUE ()
+			// Toggle to display the pie chart or not
 			showPieChart: BOOLEAN VAL,
-			// 0 (font size in points for data label; 0 = default 14pt)
+			// Font size in points (pt) for the data label and pie size
 			fontSize: INT64 VAL,
-			// 0 (default width 350px; use >0 for custom width in px)
+			// Width of the image (0 = default)
 			imageWidth: INT64 VAL
 		)
 		=>
-            //=================================================================================================
-            // Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
-            // Project website: https://www.powerofbi.org/ibcs
-            // DAX Lib package:https://daxlib.org/package/PowerofBI.IBCS/
-            // PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
-            // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
-            // LinkedIn: https://www.linkedin.com/in/avatorl/
-            // The visualization design adheres to IBCS recommendations,
-            //      but this function is NOT produced, certified, authorized, or endorsed by IBCS®
-            // License: MIT License (free and permissive), https://en.wikipedia.org/wiki/MIT_License
-            //=================================================================================================
-	    //=================================================================================================
-	    // PowerofBI.IBCS.Extras.PieChart.PctOfTotal function:
+		    //=================================================================================================
+		    // Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
+		    // Project Description: https://www.powerofbi.org/ibcs
+		    // DAX Lib package: https://daxlib.org/package/PowerofBI.IBCS/
+		    // PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
+		    // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
+		    // LinkedIn: https://www.linkedin.com/in/avatorl/
+		    // The visualization design adheres to IBCS recommendations: https://www.ibcs.com/ibcs-standards-1-2/
+		    //      but is NOT produced, certified, authorized, or endorsed by IBCS®
+		    //=================================================================================================
+		    // License: MIT License (free and permissive)
+		    // https://en.wikipedia.org/wiki/MIT_License
+		    //=================================================================================================
+		    //=================================================================================================
+		    // PowerofBI.IBCS.Extras.PieChart.PctOfTotal function:
 		    //   This UDF generates a pie chart with a data label showing percentage of total.
 		    //
 		    //   Features include:
@@ -1104,40 +1430,50 @@ function 'PowerofBI.IBCS.Extras.PieChart.PctOfTotal' =
 
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
-/// Creates a stacked column SVG showing product-group contributions inside a single category column. The function generates a column chart where each segment represents a category. The selected category (via a disconnected slicer) is highlighted with a distinct color and placed on the bottom of the stack, while other categories are shown in varying shades of grey. Value labels are placed inside segments, and total values are displayed above the column.
-/// @param {anyref} measureSalesByProductGroup - measure that returns sales for product group: [Sales by Product Group]
-/// @param {anyref} columnProductGroup - column containing product group values: 'Product Group'[Product Group]
-/// @param {anyref} columnProductGroupDisconnected - disconnected slicer column: 'Product Group (disconnected)'[Product Group]
-/// @param {anyref} columnPeriod - period column used for axis/label: 'Date'[Start of Month]
-/// @param {int64} imageWidth - 0 (default width 60px; use >0 for custom width in px)
-/// @param {int64} imageHeight - 0 (default height 320px; use >0 for custom height in px)
+/// Creates a stacked column SVG showing product-group contributions inside a single category column
+/// @param {anyref} measureSalesByProductGroup
+/// usage example: [Sales by Product Group] (measure that returns sales for product group)
+/// @param {anyref} columnProductGroup
+/// usage example: 'Product Group'[Product Group] (column containing product group values)
+/// @param {anyref} columnProductGroupDisconnected
+/// usage example: 'Product Group (disconnected)'[Product Group] (disconnected slicer column)
+/// @param {anyref} columnPeriod
+/// usage example: 'Date'[Start of Month] (period column used for axis/label)
+/// @param {int64} imageWidth
+/// usage example: 0 (default width 60px; use >0 for custom width in px)
+/// @param {int64} imageHeight
+/// usage example: 0 (default height 320px; use >0 for custom height in px)
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.ColumnChart.Stacked' =
         (
-            // measure that returns sales for product group: [Sales by Product Group]
             measureSalesByProductGroup: ANYREF EXPR,
-            // column containing product group values: 'Product Group'[Product Group]
             columnProductGroup: ANYREF EXPR,
-            // disconnected slicer column: 'Product Group (disconnected)'[Product Group]
             columnProductGroupDisconnected: ANYREF EXPR,
-            // period column used for axis/label: 'Date'[Start of Month]
             columnPeriod: ANYREF EXPR,
-            // 0 (default width 60px; use >0 for custom width in px)
             imageWidth: INT64 VAL,
-            // 0 (default height 320px; use >0 for custom height in px)
             imageHeight: INT64 VAL
         ) =>
             //=================================================================================================
             // Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
-            // Project website: https://www.powerofbi.org/ibcs
-            // DAX Lib package:https://daxlib.org/package/PowerofBI.IBCS/
+            // Project Description: https://www.powerofbi.org/ibcs
+            // DAX Lib package: https://daxlib.org/package/PowerofBI.IBCS/
             // PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
             // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
             // LinkedIn: https://www.linkedin.com/in/avatorl/
-            // The visualization design adheres to IBCS recommendations,
-            //      but this function is NOT produced, certified, authorized, or endorsed by IBCS®
-            // License: MIT License (free and permissive), https://en.wikipedia.org/wiki/MIT_License
+            // The visualization design adheres to IBCS recommendations: https://www.ibcs.com/ibcs-standards-1-2/
+            //      but is NOT produced, certified, authorized, or endorsed by IBCS®
             //=================================================================================================
+            // License: MIT License (free and permissive)
+            // https://en.wikipedia.org/wiki/MIT_License
+            //=================================================================================================
+            //=================================================================================================
+            // PowerofBI.IBCS.ColumnChart.Stacked function:
+            //   This UDF generates a compact stacked column SVG that visualizes contributions
+            //   of product groups (top N + Other) inside a single period column.
+            //
+            //   Features include:
+            //     • Stacked column segments with 5-shade grey color palette
+            //     • Top-N ranking (default 3) with an "Other" bucket for remaining groups
             //     • Highlight of selected disconnected product group (uses distinct blue-grey color)
             //     • Value labels inside segments (adaptive font size based on segment height)
             //     • Group name labels on first period column only
@@ -1156,7 +1492,7 @@ function 'PowerofBI.IBCS.ColumnChart.Stacked' =
                     "@Color", STRING,
                     "@ColorText", STRING,
                     {
-                        { 0, "#003280", "#FFFFFF" },
+                        { 0, "#666688", "#FFFFFF" },
                         { 1, "#606060", "#FFFFFF" },
                         { 2, "#808080", "#FFFFFF" },
                         { 3, "#A0A0A0", "#FFFFFF" },
@@ -1212,10 +1548,8 @@ function 'PowerofBI.IBCS.ColumnChart.Stacked' =
             /* -------------------------------------------------------------------------- */
 
 			// Typography
-			VAR _FontSizePt = 14
-				// Font size in points for labels
+			VAR _FontSizePt = 12
 			VAR _Em = _FontSizePt * 4 / 3
-				// Conversion from points to pixels
 
 			// SVG dimensions (defaults for compact matrix cells)
 			VAR _SVGHeight = IF ( imageHeight > 0, imageHeight, 320 )
@@ -1375,58 +1709,67 @@ function 'PowerofBI.IBCS.ColumnChart.Stacked' =
 
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
-/// Creates a waterfall chart showing monthly actual or forecast values vs previous year, including cumulative delta and variance pins for YTD or full-year comparisons. The function generates a column chart with an overlaid waterfall for variance analysis. The monthly column is displayed as solid black for actuals or hatched for forecasts, with a grey reference bar for the previous year. The X-axis is labeled with month letters, and value labels are shown above the columns. A green or red waterfall bar indicates the variance vs PY (absolute). A pin bar chart on the top shows the relative variance vs PY in percentage terms.
-/// @param {string} pType - type of current column, actual or forecast ("AC" or "FC")
-/// @param {int64} pMonth - selected month number 1–12 for X-axis label (5)
-/// @param {scalar} pValuePY - monthly previous year value, e.g., 4500: [PY]
-/// @param {scalar} pValueACFC - monthly actual or forecast value, e.g., 5000: [AC] or [FC]
-/// @param {scalar} pDeltaPYCumulative - cumulative delta vs PY up to prior month for waterfall: CALCULATE ( SUM ( [DeltaPY] ), DATESBETWEEN ( ... ) )
-/// @param {scalar} pPY_Total - total PY for full-year comparison: CALCULATE ( SUM ( [PY] ), ALLSELECTED ( 'Date'[Year] ) )
-/// @param {scalar} pAC_Total - total AC for full-year comparison: CALCULATE ( SUM ( [AC] ), ALLSELECTED ( 'Date'[Year] ) )
-/// @param {scalar} pFC_Total - total FC for full-year comparison: CALCULATE ( SUM ( [FC] ), ALLSELECTED ( 'Date'[Year] ) )
-/// @param {scalar} pMaxValue - maximum value for scaling: MAXX ( ALLSELECTED ( 'Date'[Month] ), MAX ( [AC], [PY], [FC] ) )
-/// @param {int64} pImageHeight - 0 (default height 620px; use >0 for custom height in px)
-/// @param {int64} businessImpact - 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
+/// Creates a waterfall chart showing monthly actual or forecast values vs previous year, including cumulative delta and variance pins for YTD or full-year comparisons
+/// @param {string} pType
+/// usage example: "AC" or "FC" (type of current column, actual or forecast)
+/// @param {int64} pMonth
+/// usage example: 5 (selected month number 1–12 for X-axis label)
+/// @param {scalar} pValuePY
+/// usage example: [PY] (monthly previous year value, e.g., 4500)
+/// @param {scalar} pValueACFC
+/// usage example: [AC] or [FC] (monthly actual or forecast value, e.g., 5000)
+/// @param {scalar} pDeltaPYCumulative
+/// usage example: CALCULATE ( SUM ( [DeltaPY] ), DATESBETWEEN ( ... ) ) (cumulative delta vs PY up to prior month for waterfall)
+/// @param {scalar} pPY_Total
+/// usage example: CALCULATE ( SUM ( [PY] ), ALLSELECTED ( 'Date'[Year] ) ) (total PY for full-year comparison)
+/// @param {scalar} pAC_Total
+/// usage example: CALCULATE ( SUM ( [AC] ), ALLSELECTED ( 'Date'[Year] ) ) (total AC for full-year comparison)
+/// @param {scalar} pFC_Total
+/// usage example: CALCULATE ( SUM ( [FC] ), ALLSELECTED ( 'Date'[Year] ) ) (total FC for full-year comparison)
+/// @param {scalar} pMaxValue
+/// usage example: MAXX ( ALLSELECTED ( 'Date'[Month] ), MAX ( [AC], [PY], [FC] ) ) (maximum value for scaling)
+/// @param {int64} pImageHeight
+/// usage example: 0 (default height 620px; use >0 for custom height in px)
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.ColumnChart.WithWaterfall' =
 		(
-		    // type of current column, actual or forecast ("AC" or "FC")
+		    // Type of current column (typically "AC" or "FC")
 		    pType: STRING VAL,
-		    // selected month number 1–12 for X-axis label (5)
+		    // Selected month number (1–12) used for X-axis label
 		    pMonth: INT64 VAL,
-		    // monthly previous year value, e.g., 4500: [PY]
+		    // Monthly PY value (previous year)
 		    pValuePY: SCALAR VAL,
-		    // monthly actual or forecast value, e.g., 5000: [AC] or [FC]
+		    // Monthly AC/FC value (actual or forecast)
 		    pValueACFC: SCALAR VAL,
-		    // cumulative delta vs PY up to prior month for waterfall: CALCULATE ( SUM ( [DeltaPY] ), DATESBETWEEN ( ... ) )
+		    // Cumulative delta vs PY up to prior month (for waterfall)
 		    pDeltaPYCumulative: SCALAR VAL,
-		    // total PY for full-year comparison: CALCULATE ( SUM ( [PY] ), ALLSELECTED ( 'Date'[Year] ) )
+		    // Year-to-date (or year total) PY
 		    pPY_Total: SCALAR VAL,
-		    // total AC for full-year comparison: CALCULATE ( SUM ( [AC] ), ALLSELECTED ( 'Date'[Year] ) )
+		    // Year-to-date (or year total) AC
 		    pAC_Total: SCALAR VAL,
-		    // total FC for full-year comparison: CALCULATE ( SUM ( [FC] ), ALLSELECTED ( 'Date'[Year] ) )
+		    // Year-to-date (or year total) FC
 		    pFC_Total: SCALAR VAL,
-		    // maximum value for scaling: MAXX ( ALLSELECTED ( 'Date'[Month] ), MAX ( [AC], [PY], [FC] ) )
+		    // Max value across series (ALLSELECTED) for consistent scaling
 		    pMaxValue: SCALAR VAL,
-		    // 0 (default height 620px; use >0 for custom height in px)
-		    pImageHeight: INT64 VAL,
-		    // 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
-		    businessImpact: INT64 VAL
+		    pImageHeight: INT64 VAL
+		    
 		)
 		=>
-            //=================================================================================================
-            // Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
-            // Project website: https://www.powerofbi.org/ibcs
-            // DAX Lib package:https://daxlib.org/package/PowerofBI.IBCS/
-            // PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
-            // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
-            // LinkedIn: https://www.linkedin.com/in/avatorl/
-            // The visualization design adheres to IBCS recommendations,
-            //      but this function is NOT produced, certified, authorized, or endorsed by IBCS®
-            // License: MIT License (free and permissive), https://en.wikipedia.org/wiki/MIT_License
-            //=================================================================================================
-	    //=================================================================================================
-	    // PowerofBI.IBCS.ColumnChart.WithWaterfall function:
+		    //=================================================================================================
+		    // Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
+		    // Project Description: https://www.powerofbi.org/ibcs
+		    // DAX Lib package: https://daxlib.org/package/PowerofBI.IBCS/
+		    // PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
+		    // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
+		    // LinkedIn: https://www.linkedin.com/in/avatorl/
+		    // The visualization design adheres to IBCS recommendations: https://www.ibcs.com/ibcs-standards-1-2/
+		    //      but is NOT produced, certified, authorized, or endorsed by IBCS®
+		    //=================================================================================================
+		    // License: MIT License (free and permissive)
+		    // https://en.wikipedia.org/wiki/MIT_License
+		    //=================================================================================================
+		    //=================================================================================================
+		    // PowerofBI.IBCS.ColumnChart.WithWaterfall function:
 		    //   This UDF composes a three-tier IBCS visual: monthly columns, an absolute-variance waterfall, and relative-variance pins.
 		    //
 		    //   Features include:
@@ -1458,7 +1801,6 @@ function 'PowerofBI.IBCS.ColumnChart.WithWaterfall' =
 		    // Derived values
 		    VAR _DeltaPY   = _ValueACFC - _ValuePY  -- Monthly variance vs PY
 		    VAR DeltaPYPct = ROUND ( DIVIDE ( _ValueACFC - _ValuePY, _ValuePY ) * 100, 0 )  -- Monthly variance percentage
-		    VAR _DeltaPYPctTotal = ROUND ( DIVIDE ( _AC_Value + _FC_Value - _PY_Value, _PY_Value ) * 100, 0 )  -- Year-total variance percentage
 		
 		    // ==========================================
 		    // PARAMETERS (layout, colors, sizing)
@@ -1589,12 +1931,12 @@ function 'PowerofBI.IBCS.ColumnChart.WithWaterfall' =
 		        VAR _Fill =
 		            SWITCH (
 		                TRUE (),
-		                _Type = "AC" && _DeltaPY * businessImpact > 0, _Color_Green,
-		                _Type = "AC" && _DeltaPY * businessImpact < 0, _Color_Red,
-		                _Type = "FC" && _DeltaPY * businessImpact > 0, "url(#diagonal-stripe-green)",
-		                _Type = "FC" && _DeltaPY * businessImpact < 0, "url(#diagonal-stripe-red)"
+		                _Type = "AC" && _DeltaPY > 0, _Color_Green,
+		                _Type = "AC" && _DeltaPY < 0, _Color_Red,
+		                _Type = "FC" && _DeltaPY > 0, "url(#diagonal-stripe-green)",
+		                _Type = "FC" && _DeltaPY < 0, "url(#diagonal-stripe-red)"
 		            )
-		        VAR _Stroke = SWITCH ( TRUE (), _DeltaPY * businessImpact > 0, _Color_Green, _DeltaPY * businessImpact < 0, _Color_Red )
+		        VAR _Stroke = SWITCH ( TRUE (), _DeltaPY > 0, _Color_Green, _DeltaPY < 0, _Color_Red )
 		        RETURN
 		            "<rect x='" & _ColumnsLeftOffset & "' y='" &
 		                _SVG_Height - _SVG_Bottom_Pad - _Cumulative + IF ( _DeltaPY > 0, - _DeltaPY * _SVG_Scale, 0 ) &
@@ -1628,14 +1970,11 @@ function 'PowerofBI.IBCS.ColumnChart.WithWaterfall' =
 		        _SVG_Height - _SVG_Bottom_Pad - ( _AC_Value + _FC_Value ) * _SVG_Scale & "' stroke='#000000' stroke-width='" & _ReferenceLineWidth & "'></line>"
 		
 		    VAR _TotalVariance =
-		        VAR _TotalDelta = _FC_Value + _AC_Value - _PY_Value  -- Year-total variance (AC+FC minus PY)
-		        VAR _Fill = IF ( _TotalDelta * businessImpact >= 0, _Color_Green, _Color_Red )  -- Green for favorable, red for unfavorable (flipped by businessImpact)
-		        VAR _Height = ABS ( _TotalDelta ) * _SVG_Scale
-		        VAR _PY_Y = _SVG_Height - _SVG_Bottom_Pad - _PY_Value * _SVG_Scale  -- PY reference line Y position
-		        VAR _YPosition = IF ( _TotalDelta >= 0, _PY_Y - _Height, _PY_Y )  -- Above PY line for positive, below for negative
+		        VAR _Fill = "red"
+		        VAR _Height = ABS ( _FC_Value + _AC_Value - _PY_Value ) * _SVG_Scale
 		        RETURN
 		            "<rect x='" & _TotalCategoryPosition + _CategoryWidthYear & "' y='" &
-		            _YPosition & "' height='" &
+		            _SVG_Height - _SVG_Bottom_Pad - _PY_Value * _SVG_Scale & "' height='" &
 		            _Height & "' width='" & _PinWidth & "' fill='" & _Fill & "' stroke-width='0'></rect>"
 		
 		    VAR ACFC_Total_Label =
@@ -1659,7 +1998,7 @@ function 'PowerofBI.IBCS.ColumnChart.WithWaterfall' =
 		
 		    VAR ACFCminusPY_Relative =
 		        VAR _Height = ABS ( DeltaPYPct )
-		        VAR _Fill = SWITCH ( TRUE (), DeltaPYPct * businessImpact > 0, _Color_Green, DeltaPYPct * businessImpact < 0, _Color_Red )
+		        VAR _Fill = SWITCH ( TRUE (), DeltaPYPct > 0, _Color_Green, DeltaPYPct < 0, _Color_Red )
 		        RETURN
 		            "<rect x='" & _ColumnsLeftOffset + 15 & "' y='" &
 		                _SVG_Top_Pad + IF ( DeltaPYPct > 0, - DeltaPYPct, 0 ) &
@@ -1687,25 +2026,26 @@ function 'PowerofBI.IBCS.ColumnChart.WithWaterfall' =
 		        "<line x1='" & _TotalCategoryPosition & "' x2='" & _TotalCategoryPosition + _CategoryWidth & "' y1='" & _SVG_Top_Pad & "' y2='" & _SVG_Top_Pad & "' stroke='" & _Color_LightGrey & "' stroke-width='" & _RelativeAxisLineWidth & "'></line>"
 		
 		    VAR ACFCminusPY_RelativeTotal =
-		        VAR _Height = ABS ( _DeltaPYPctTotal )  -- Use year-total percentage (not monthly)
-		        VAR _Fill = SWITCH ( TRUE (), _DeltaPYPctTotal * businessImpact > 0, _Color_Green, _DeltaPYPctTotal * businessImpact < 0, _Color_Red )
+		        VAR _Height = ABS ( DeltaPYPct )
+		        VAR _Fill = SWITCH ( TRUE (), DeltaPYPct > 0, _Color_Green, DeltaPYPct < 0, _Color_Red )
 		        RETURN
 		            "<rect x='" & _TotalCategoryPosition + _ColumnWidthYear / 2 & "' y='" &
-		                _SVG_Top_Pad + IF ( _DeltaPYPctTotal > 0, - _DeltaPYPctTotal, 0 ) &
+		                _SVG_Top_Pad + IF ( DeltaPYPct > 0, - DeltaPYPct, 0 ) &
 		                "' height='" & _Height & "' width='" & _PinWidth & "' fill='" & _Fill & "' stroke='#000000' stroke-width='0'></rect>"
-
+		
 		    VAR ACFCminusPY_RelativeBlackBoxTotal =
-		        VAR _TypeTotal = IF ( _FC_Value <> 0, "FC", "AC" )  -- Pin head style: hatched if forecast data exists, solid otherwise
+		        VAR _TypeTotal = "FC"    -- pin head style
 		        VAR _Fill = SWITCH ( _TypeTotal, "AC", _Color_DarkGrey, "FC", "url(#diagonal-stripe)" )
 		        RETURN
 		            "<rect x='" & _TotalCategoryPosition + _ColumnWidthYear / 2 - _PinHeadWidth / 2 + 3 & "' y='" &
-		            _SVG_Top_Pad - _DeltaPYPctTotal - _PinHeadWidth / 2 & "' height='" & _PinHeadWidth &
+		            _SVG_Top_Pad - DeltaPYPct - _PinHeadWidth / 2 & "' height='" & _PinHeadWidth &
 		            "' width='" & _PinHeadWidth & "' fill='" & _Fill & "' stroke='" & _Color_DarkGrey & "' stroke-width='" & _OutlineStrokeWith & "'></rect>"
-
+		
 		    VAR RelativeVariation_LabelsTotal =
 		        "<text x='" & _TotalCategoryPosition + _ColumnWidthYear / 2 & "' y='" &
-		            _SVG_Top_Pad + IF ( _DeltaPYPctTotal > 0, - _DeltaPYPctTotal - 20, - _DeltaPYPctTotal + 20 ) &
-		            "' stroke='#000000' stroke-width='0'>" & FORMAT ( _DeltaPYPctTotal, "+0;-0;0" ) & "</text>"
+		            _SVG_Top_Pad + IF ( DeltaPYPct > 0, - DeltaPYPct - 20, - DeltaPYPct + 20 ) &
+		            "' stroke='#000000' stroke-width='0'>" & FORMAT ( DeltaPYPct, "+0;-0;0" ) & "</text>"
+		
 		    VAR _SVG_RELATIVEVARIANCE_TOTAL =
 		        _AxisRelativeTotal & ACFCminusPY_RelativeBlackBoxTotal & ACFCminusPY_RelativeTotal & RelativeVariation_LabelsTotal
 		
@@ -1731,55 +2071,63 @@ function 'PowerofBI.IBCS.ColumnChart.WithWaterfall' =
 
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
-/// Creates absolute and relative variance small multiple column charts. The function generates an SVG image with a column chart for each category (e.g., country), showing either absolute or relative variance. Actual periods are styled with solid fill and planned periods with outlined bars. The variance type (absolute or relative) is switchable via a parameter.
-/// @param {string} varianceType - type of variance chart to generate: "Absolute" or "Relative"
-/// @param {anyref} columnCategory - column with a list of categories for individual cards: 'Country'[Country]
-/// @param {anyref} columnPeriod - column with a list of periods for X-axis values: 'Year'[Year]
-/// @param {anyref} measureDeltaAbsolute - absolute variance measure, e.g., 500: [Delta Average Sales]
-/// @param {anyref} measureDeltaPct - relative variance measure as whole number, e.g., 15 for +15%: [Delta Average Sales %]
-/// @param {scalar} endOfActual - last period with actual data, e.g., 2024; periods after this are treated as planned: [EndOfActualPeriod]
-/// @param {scalar} measureSortOrder - measure used for card sort order; add to Tooltips field in visual: [Sales Total]
-/// @param {int64} imageWidth - 0 (default width 350px; use >0 for custom width in px)
-/// @param {int64} imageHeight - 0 (default height 220px; use >0 for custom height in px)
-/// @param {int64} businessImpact - 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
+/// Creates absolute and relative variance small multiple column charts
+/// @param {string} varianceType
+/// usage example: "Absolute" or "Relative" (type of variance chart to generate)
+/// @param {anyref} columnCategory
+/// usage example: 'Country'[Country] (column with a list of categories for individual cards)
+/// @param {anyref} columnPeriod
+/// usage example: 'Year'[Year] (column with a list of periods for X-axis values)
+/// @param {anyref} measureDeltaAbsolute
+/// usage example: [Delta Average Sales] (absolute variance measure, e.g., 500)
+/// @param {anyref} measureDeltaPct
+/// usage example: [Delta Average Sales %] (relative variance measure as whole number, e.g., 15 for +15%)
+/// @param {scalar} endOfActual
+/// usage example: [EndOfActualPeriod] (last period with actual data, e.g., 2024; periods after this are treated as planned)
+/// @param {scalar} measureSortOrder
+/// usage example: [Sales Total] (measure used for card sort order; add to Tooltips field in visual)
+/// @param {int64} imageWidth
+/// usage example: 0 (default width 350px; use >0 for custom width in px)
+/// @param {int64} imageHeight
+/// usage example: 0 (default height 220px; use >0 for custom height in px)
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.ColumnChart.SmallMultiple' =
 		(
-			// type of variance chart to generate: "Absolute" or "Relative"
+			// VARiance type: ["Absolute", "Relative"]
 			varianceType: STRING VAL,
-			// column with a list of categories for individual cards: 'Country'[Country]
+			// column with a list of categories (cards)
 			columnCategory: ANYREF EXPR,
-			// column with a list of periods for X-axis values: 'Year'[Year]
+			// column with a list of periods (Axis X values)
 			columnPeriod: ANYREF EXPR,
-			// absolute variance measure, e.g., 500: [Delta Average Sales]
+			// absolute variance measure
 			measureDeltaAbsolute: ANYREF EXPR,
-			// relative variance measure as whole number, e.g., 15 for +15%: [Delta Average Sales %]
+			// relative variance measure (% as whole number)
 			measureDeltaPct: ANYREF EXPR,
-			// last period with actual data, e.g., 2024; periods after this are treated as planned: [EndOfActualPeriod]
+			// last period with actual data available
 			endOfActual: SCALAR VAL,
-			// measure used for card sort order; add to Tooltips field in visual: [Sales Total]
+			// measure for sort order (add into the Tooltips field)
 			measureSortOrder: SCALAR EXPR,
-			// 0 (default width 350px; use >0 for custom width in px)
+			// image width
 			imageWidth: INT64 VAL,
-			// 0 (default height 220px; use >0 for custom height in px)
-			imageHeight: INT64 VAL,
-			// 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
-			businessImpact: INT64 VAL
+			// image height
+			imageHeight: INT64 VAL
 			
 		) =>
-            //=================================================================================================
-            // Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
-            // Project website: https://www.powerofbi.org/ibcs
-            // DAX Lib package:https://daxlib.org/package/PowerofBI.IBCS/
-            // PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
-            // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
-            // LinkedIn: https://www.linkedin.com/in/avatorl/
-            // The visualization design adheres to IBCS recommendations,
-            //      but this function is NOT produced, certified, authorized, or endorsed by IBCS®
-            // License: MIT License (free and permissive), https://en.wikipedia.org/wiki/MIT_License
-            //=================================================================================================
-
-            // PowerofBI.IBCS.ColumnChart.SmallMultiple function:
+			//=================================================================================================
+			// Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
+			// Project Description: https://www.powerofbi.org/ibcs
+			// DAX Lib package: https://daxlib.org/package/PowerofBI.IBCS/
+			// PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
+			// Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
+			// LinkedIn: https://www.linkedin.com/in/avatorl/
+			// The visualization design adheres to IBCS recommendations: https://www.ibcs.com/ibcs-standards-1-2/
+			//      but is NOT produced, certified, authorized, or endorsed by IBCS®
+			//=================================================================================================
+			// License: MIT License (free and permissive)
+			// https://en.wikipedia.org/wiki/MIT_License
+			//=================================================================================================
+			//=================================================================================================
+			// PowerofBI.IBCS.ColumnChart.SmallMultiple function:
 			//   This UDF builds small-multiple variance column charts (absolute or relative) across categories.
 			//
 			//   Features include:
@@ -1807,11 +2155,11 @@ function 'PowerofBI.IBCS.ColumnChart.SmallMultiple' =
 					"@rowNum", ROWNUMBER ( _DataTable, ORDERBY ( [@Period], ASC ) )
 				)
 			VAR _PLPeriodStart = endOfActual + 1     // First planned period
-			VAR _PeriodStart = MIN ( columnPeriod )  // Earliest period value (MIN = smallest year/date)
-			VAR _PeriodEnd = MAX ( columnPeriod )  // Latest period value (MAX = largest year/date)
+			VAR _PeriodEnd = MIN ( columnPeriod )  // Earliest period value (MIN = smallest year/date)
+			VAR _PeriodStart = MAX ( columnPeriod )  // Latest period value (MAX = largest year/date)
 			VAR _PeriodMiddle =
-				// Middle period for centering title
-				ROUND ( ( _PeriodStart + _PeriodEnd ) / 2, 0 )
+				// Middle period for centering title (formula uses End-Start to find midpoint)
+				ROUND ( ( _PeriodEnd - _PeriodStart ) / 2 + _PeriodStart, 0 )
 			VAR _AllColumns = // All data points across all categories in ALLSELECTED context
 				CALCULATETABLE (                
 						SUMMARIZECOLUMNS (
@@ -1881,8 +2229,8 @@ function 'PowerofBI.IBCS.ColumnChart.SmallMultiple' =
 					( ( _RowNum - 1 ) * _ColumnWidth ) + ( _spaceBetweenColumns * ( _RowNum - 1 ) ) + IF ( _IsRelativeVariance, _SpaceBetweenColumns + _ColumnWidth*0.5, 0 )
 					VAR _xAxis = ( ( _RowNum - 1 ) * _ColumnWidth ) + ( _spaceBetweenColumns * ( _RowNum - 1 ) ) + IF ( _IsRelativeVariance, 0, 0 )
 					VAR _ColumnColorOutline =
-						--outline color (green or red, flipped by businessImpact)
-						IF ( _Value * businessImpact >= 0, _ColorGreen, _ColorRed )
+						--outline color (green or red)
+						IF ( _Value >= 0, _ColorGreen, _ColorRed )
 					VAR _ColumnColorFill =
 						--file color: same as outline color for AC, white for PL
 						IF (
@@ -2000,51 +2348,62 @@ function 'PowerofBI.IBCS.ColumnChart.SmallMultiple' =
 
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
-/// Creates vertical waterfall (e.g., for P&L). The function generates an SVG image of a vertical waterfall chart with bars positioned according to a running total logic. It supports hierarchical P&L structures with two levels (e.g., Category and SubCategory) and differentiates actuals, plan, and previous year with distinct styling. Data labels are anchored based on bar direction.
-/// @param {string} chartType - chart rendering type: black for AC, grey for PY, outlined for PL ("AC", "PY", or "PL")
-/// @param {table} tableBase - table that defines the P&L structure ('P&L Structure')
-/// @param {anyref} measureMainValue - measure that returns monetary amount: [Amount]
-/// @param {string} dataLabel - formatted data label string, e.g., "$1,500": FORMAT ( [Amount], "$#,0" )
-/// @param {anyref} columnRowSign - column with "+", "-", or "=" indicating row behavior ('P&L'[Sign])
-/// @param {anyref} columnIndex - column with row index for proper ordering ('P&L'[Row Index])
-/// @param {scalar} scaleMax - maximum absolute value for scaling: MAXX ( ALLSELECTED ( 'P&L'[Line Item] ), ABS ( [Amount] ) )
-/// @param {anyref} columnLevel1 - first hierarchical level, e.g., Income, Expenses ('P&L'[Category])
-/// @param {anyref} columnLevel2 - second hierarchical level for nested hierarchy ('P&L'[SubCategory])
+/// Creates vertical waterfall (e.g., for P&L)
+/// @param {string} chartType
+/// usage example: "AC", "PY", or "PL" (chart rendering type: black for AC, grey for PY, outlined for PL)
+/// @param {table} tableBase
+/// usage example: 'P&L Structure' (table that defines the P&L structure)
+/// @param {anyref} measureMainValue
+/// usage example: [Amount] (measure that returns monetary amount)
+/// @param {string} dataLabel
+/// usage example: FORMAT ( [Amount], "$#,0" ) (formatted data label string, e.g., "$1,500")
+/// @param {anyref} columnRowSign
+/// usage example: 'P&L'[Sign] (column with "+", "-", or "=" indicating row behavior)
+/// @param {anyref} columnIndex
+/// usage example: 'P&L'[Row Index] (column with row index for proper ordering)
+/// @param {scalar} scaleMax
+/// usage example: MAXX ( ALLSELECTED ( 'P&L'[Line Item] ), ABS ( [Amount] ) ) (maximum absolute value for scaling)
+/// @param {anyref} columnLevel1
+/// usage example: 'P&L'[Category] (first hierarchical level, e.g., Income, Expenses)
+/// @param {anyref} columnLevel2
+/// usage example: 'P&L'[SubCategory] (second hierarchical level for nested hierarchy)
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.Waterfall.Vertical' = 
 		( 
-			// chart rendering type: black for AC, grey for PY, outlined for PL ("AC", "PY", or "PL")
+			// chart type: "AC" - black, "PY" - grey, "PL" - outlined
 			chartType: STRING VAL,
-			// table that defines the P&L structure ('P&L Structure')
+			// table that defines P&L structure
 			tableBase: TABLE VAL,
-			// measure that returns monetary amount: [Amount]
+			// measure that returns $ amount
 			measureMainValue: ANYREF EXPR,
-			// formatted data label string, e.g., "$1,500": FORMAT ( [Amount], "$#,0" )
+			// data label string
 			dataLabel: STRING VAL,
-			// column with "+", "-", or "=" indicating row behavior ('P&L'[Sign])
+			// column with "+", "-" or "="
 			columnRowSign: ANYREF EXPR,
-			// column with row index for proper ordering ('P&L'[Row Index])
+			// column with row index
 			columnIndex: ANYREF EXPR,
-			// maximum absolute value for scaling: MAXX ( ALLSELECTED ( 'P&L'[Line Item] ), ABS ( [Amount] ) )
+			// max possible value for scaling
 			scaleMax: SCALAR VAL,
-			// first hierarchical level, e.g., Income, Expenses ('P&L'[Category])
+			// level 1 column
 			columnLevel1: ANYREF EXPR,
-			// second hierarchical level for nested hierarchy ('P&L'[SubCategory])
+			// level 2 column
 			columnLevel2: ANYREF EXPR
 		) =>
-            //=================================================================================================
-            // Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
-            // Project website: https://www.powerofbi.org/ibcs
-            // DAX Lib package:https://daxlib.org/package/PowerofBI.IBCS/
-            // PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
-            // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
-            // LinkedIn: https://www.linkedin.com/in/avatorl/
-            // The visualization design adheres to IBCS recommendations,
-            //      but this function is NOT produced, certified, authorized, or endorsed by IBCS®
-            // License: MIT License (free and permissive), https://en.wikipedia.org/wiki/MIT_License
-            //=================================================================================================
-
-            // PowerofBI.IBCS.Waterfall.Vertical function:
+			//=================================================================================================
+			// Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
+			// Project Description: https://www.powerofbi.org/ibcs
+			// DAX Lib package: https://daxlib.org/package/PowerofBI.IBCS/
+			// PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
+			// Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
+			// LinkedIn: https://www.linkedin.com/in/avatorl/
+			// The visualization design adheres to IBCS recommendations: https://www.ibcs.com/ibcs-standards-1-2/
+			//      but is NOT produced, certified, authorized, or endorsed by IBCS®
+			//=================================================================================================
+			// License: MIT License (free and permissive)
+			// https://en.wikipedia.org/wiki/MIT_License
+			//=================================================================================================
+			//=================================================================================================
+			// PowerofBI.IBCS.Waterfall.Vertical function:
 			//   This UDF renders a vertical waterfall for hierarchical P&L structures (AC/PY/PL styling).
 			//
 			//   Features include:
@@ -2179,7 +2538,7 @@ function 'PowerofBI.IBCS.Waterfall.Vertical' =
 				) * _DrawableWidth  // Scale to SVG width
 
 			VAR _Width =
-				ROUND ( DIVIDE ( ABS ( _Change ), scaleMax ) * _DrawableWidth, 1 )  // Absolute width, scaled to SVG
+				ROUND ( ABS ( _Change ) / scaleMax * _DrawableWidth, 1 )  // Absolute width, scaled to SVG
 
 			//-------------------------------------------------------------------------------------------------
 			// Colors                                                                                        
@@ -2267,43 +2626,47 @@ function 'PowerofBI.IBCS.Waterfall.Vertical' =
 
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
-/// Creates wide column chart showing absolute values and variance. It features a PY reference column (grey or outlined) with an AC overlay, an optional forecast column hook (currently disabled), and a red/green variance indicator sized by AC vs PY.
-/// @param {scalar} valueAC - actual value, solid black, e.g., 5000: [AC]
-/// @param {scalar} valuePY - previous year/base value, grey, e.g., 4500: [PY]
-/// @param {scalar} valueMAX - maximum value for scaling: MAXX ( ALLSELECTED ( 'Category' ), MAX ( [AC], [PY] ) )
-/// @param {string} axiXLabel - axis X label, e.g., "January" ('Date'[Month Name])
-/// @param {string} dataLabel - data label, e.g., "+500": FORMAT ( [AC] - [PY], "+#,0;-#,0;=" )
-/// @param {int64} businessImpact - 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
+/// Creates wide column chart showing absolute values and variance
+/// @param {scalar} valueAC
+/// usage example: [AC] (actual value, solid black, e.g., 5000)
+/// @param {scalar} valuePY
+/// usage example: [PY] (previous year/base value, grey, e.g., 4500)
+/// @param {scalar} valueMAX
+/// usage example: MAXX ( ALLSELECTED ( 'Category' ), MAX ( [AC], [PY] ) ) (maximum value for scaling)
+/// @param {string} axiXLabel
+/// usage example: 'Date'[Month Name] (axis X label, e.g., "January")
+/// @param {string} dataLabel
+/// usage example: FORMAT ( [AC] - [PY], "+#,0;-#,0;=" ) (data label, e.g., "+500")
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells)
 function 'PowerofBI.IBCS.ColumnChart.AbsoluteVarianceWide' =
 		(
-			// actual value, solid black, e.g., 5000: [AC]
+			// main value (solid black)
 			valueAC: SCALAR VAL,
-			// previous year/base value, grey, e.g., 4500: [PY]
+			// base value (grey)
 			valuePY: SCALAR VAL,
-			// maximum value for scaling: MAXX ( ALLSELECTED ( 'Category' ), MAX ( [AC], [PY] ) )
+			// max value (for scaling
 			valueMAX: SCALAR VAL,
-			// axis X label, e.g., "January" ('Date'[Month Name])
+			// axis x label
 			axiXLabel: STRING VAL,
-			// data label, e.g., "+500": FORMAT ( [AC] - [PY], "+#,0;-#,0;=" )
-			dataLabel: STRING VAL,
-			// 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
-			businessImpact: INT64 VAL
+			// data label
+			dataLabel: STRING VAL
 			
 		) =>
-            //=================================================================================================
-            // Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
-            // Project website: https://www.powerofbi.org/ibcs
-            // DAX Lib package:https://daxlib.org/package/PowerofBI.IBCS/
-            // PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
-            // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
-            // LinkedIn: https://www.linkedin.com/in/avatorl/
-            // The visualization design adheres to IBCS recommendations,
-            //      but this function is NOT produced, certified, authorized, or endorsed by IBCS®
-            // License: MIT License (free and permissive), https://en.wikipedia.org/wiki/MIT_License
-            //=================================================================================================
-
-            // PowerofBI.IBCS.ColumnChart.AbsoluteVarianceWide function:
+			//=================================================================================================
+			// Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
+			// Project Description: https://www.powerofbi.org/ibcs
+			// DAX Lib package: https://daxlib.org/package/PowerofBI.IBCS/
+			// PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
+			// Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
+			// LinkedIn: https://www.linkedin.com/in/avatorl/
+			// The visualization design adheres to IBCS recommendations: https://www.ibcs.com/ibcs-standards-1-2/
+			//      but is NOT produced, certified, authorized, or endorsed by IBCS®
+			//=================================================================================================
+			// License: MIT License (free and permissive)
+			// https://en.wikipedia.org/wiki/MIT_License
+			//=================================================================================================
+			//=================================================================================================
+			// PowerofBI.IBCS.ColumnChart.AbsoluteVarianceWide function:
 			//   This UDF renders a wide single-column visual comparing AC vs PY with a variance bar.
 			//
 			//   Features include:
@@ -2340,9 +2703,9 @@ function 'PowerofBI.IBCS.ColumnChart.AbsoluteVarianceWide' =
 			VAR _MaxValue = valueMAX  -- Scale reference for all visible periods
 				
 
-			// Inverted color logic (derived from businessImpact parameter)
+			// Inverted color logic (used for unfavorable/good semantics)
 			VAR _InvertedColors =
-				businessImpact < 0  -- TRUE when businessImpact = -1 (e.g., cost metrics)
+				FALSE ()  -- Color semantics not inverted (red=bad, green=good)
 
 			// Text shown above / inside the column
 			VAR _DataLabel = dataLabel  -- Variance value label (e.g., "+500")
@@ -2621,39 +2984,42 @@ function 'PowerofBI.IBCS.ColumnChart.AbsoluteVarianceWide' =
 
 	annotation DAXLIB_PackageVersion = __PLACEHOLDER_PACKAGE_VERSION__
 
-/// Creates a bar chart with absolute variance visualization. The function generates an SVG image of a horizontal bar chart comparing actual (AC) vs previous year (PY) values, with a red/green variance bar indicating the difference. The chart is designed for embedding in Power BI button slicer.
-/// @param {scalar} valueMain - actual value, solid black bar, e.g., 5000: [AC]
-/// @param {scalar} valueBase - previous period/base value, grey bar, e.g., 4500: [PY]
-/// @param {anyref} columnDimension - dimension column used to evaluate visible maximum for scaling ('Category'[Category])
-/// @param {int64} imageWidth - 0 (default width 300px; use >0 for custom width in px)
-/// @param {int64} businessImpact - 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
+/// Creates a bar chart with absolute and relative variance visualization
+/// @param {scalar} valueMain
+/// usage example: [AC] (actual value, solid black bar, e.g., 5000)
+/// @param {scalar} valueBase
+/// usage example: [PY] (previous period/base value, grey bar, e.g., 4500)
+/// @param {anyref} columnDimension
+/// usage example: 'Category'[Category] (dimension column used to evaluate visible maximum for scaling)
+/// @param {scalar} imageWidth
+/// usage example: 0 (default width 300px; use >0 for custom width in px)
 /// @returns SVG image (data:image/svg+xml URI for embedding in table cells, includes PY bar, AC bar, and red/green variance bar)
 function 'PowerofBI.IBCS.BarChart.WithAbsoluteVariance' =
 		(
-		    // actual value, solid black bar, e.g., 5000: [AC]
+		    // Main value (Actual)
 		    valueMain: SCALAR EXPR,
-		    // previous period/base value, grey bar, e.g., 4500: [PY]
+		    // Base value (Previous Period)
 		    valueBase: SCALAR EXPR,
-		    // dimension column used to evaluate visible maximum for scaling ('Category'[Category])
+		    // Dimension used to evaluate visible max
 		    columnDimension: ANYREF EXPR,
-		    // 0 (default width 300px; use >0 for custom width in px)
-		    imageWidth: SCALAR VAL,
-		    // 1: positive delta is green (e.g., sales); -1: positive delta is red (e.g., cost). Default: 1
-		    businessImpact: INT64 VAL
+		    // Optional SVG width (0 = default)
+		    imageWidth: SCALAR VAL
 		) =>
-            //=================================================================================================
-            // Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
-            // Project website: https://www.powerofbi.org/ibcs
-            // DAX Lib package:https://daxlib.org/package/PowerofBI.IBCS/
-            // PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
-            // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
-            // LinkedIn: https://www.linkedin.com/in/avatorl/
-            // The visualization design adheres to IBCS recommendations,
-            //      but this function is NOT produced, certified, authorized, or endorsed by IBCS®
-            // License: MIT License (free and permissive), https://en.wikipedia.org/wiki/MIT_License
-            //=================================================================================================
-	    //=================================================================================================
-	    // PowerofBI.IBCS.BarChart.WithAbsoluteVariance function:
+		    //=================================================================================================
+		    // Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
+		    // Project Description: https://www.powerofbi.org/ibcs
+		    // DAX Lib package: https://daxlib.org/package/PowerofBI.IBCS/
+		    // PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
+		    // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
+		    // LinkedIn: https://www.linkedin.com/in/avatorl/
+		    // The visualization design adheres to IBCS recommendations: https://www.ibcs.com/ibcs-standards-1-2/
+		    //      but is NOT produced, certified, authorized, or endorsed by IBCS®
+		    //=================================================================================================
+		    // License: MIT License (free and permissive)
+		    // https://en.wikipedia.org/wiki/MIT_License
+		    //=================================================================================================
+		    //=================================================================================================
+		    // PowerofBI.IBCS.BarChart.WithAbsoluteVariance function:
 		    //   This UDF outputs a compact horizontal bar chart with AC vs PY and a variance marker.
 		    //
 		    //   Features include:
@@ -2751,7 +3117,7 @@ function 'PowerofBI.IBCS.BarChart.WithAbsoluteVariance' =
 		
 		    -- Variance bar color
 		    VAR _BarColor =
-		        IF ( _DeltaPY * businessImpact > 0, _ColorGreen, _ColorRed )
+		        IF ( _DeltaPY > 0, _ColorGreen, _ColorRed )
 		
 		    -- Label positioning
 		    VAR _LabelOffsetX =
@@ -2781,10 +3147,6 @@ function 'PowerofBI.IBCS.BarChart.WithAbsoluteVariance' =
 		    <svg xmlns='http://www.w3.org/2000/svg'>" &
 		      _SVG_DebugBox &
 		    "
-		      <!-- PY bar -->
-		      <rect
-		          x='0'
-		          y='0'
 		          width='" & _WidthPY & "'
 		          height='" & _Em & "'
 		          fill='" & _ColorPY & "'
