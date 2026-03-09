@@ -108,6 +108,8 @@ Recommended to use in Button Slicer visual.
 
 Small multiple column charts (absolute and relative variance).
 
+<img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_button_slicer_small_multiple_column_values.png" />
+
 <img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_button_slicer_small_multiple_column_abs.png" />
 
 <img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_button_slicer_small_multiple_column_rel.png" />
@@ -121,6 +123,14 @@ Stacked column chart. Features top N ranking (default 3) with an "Other" group, 
 <img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen-button-slicer-stacked-column.png" />
 
 Recommended to use in Button Slicer visual.
+
+### PowerofBI.IBCS.Waterfall.Vertical
+
+Vertical waterfall chart for hierarchical P&L structures.
+
+<img alt="image" src="https://raw.githubusercontent.com/avatorl/dax-udf-svg-ibcs/refs/heads/main/docs/images/screen_p-and-l-waterfall.png" />
+
+Recommended to use in Matrix visuals.
 
 ## License
 

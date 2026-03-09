@@ -1,0 +1,334 @@
+(
+    // Type of current column (typically "AC" or "FC")
+    pType: STRING VAL,
+    // Selected month number (1–12) used for X-axis label
+    pMonth: INT64 VAL,
+    // Monthly PY value (previous year)
+    pValuePY: SCALAR VAL,
+    // Monthly AC/FC value (actual or forecast)
+    pValueACFC: SCALAR VAL,
+    // Cumulative delta vs PY up to prior month (for waterfall)
+    pDeltaPYCumulative: SCALAR VAL,
+    // Year-to-date (or year total) PY
+    pPY_Total: SCALAR VAL,
+    // Year-to-date (or year total) AC
+    pAC_Total: SCALAR VAL,
+    // Year-to-date (or year total) FC
+    pFC_Total: SCALAR VAL,
+    // Max value across series (ALLSELECTED) for consistent scaling
+    pMaxValue: SCALAR VAL,
+    pImageHeight: INT64 VAL
+
+)
+=>
+    //=================================================================================================
+    // Project: PowerofBI.IBCS: IBCS-guided data visualizations in your Power BI reports
+    // Project Description: https://www.powerofbi.org/ibcs
+    // DAX Lib package: https://daxlib.org/package/PowerofBI.IBCS/
+    // PowerofBI.IBCS support: https://github.com/avatorl/dax-udf-svg-ibcs/issues
+    // Author: Andrzej Leszkiewicz — IBCS® Certified Analyst
+    // LinkedIn: https://www.linkedin.com/in/avatorl/
+    // The visualization design adheres to IBCS recommendations: https://www.ibcs.com/ibcs-standards-1-2/
+    //      but is NOT produced, certified, authorized, or endorsed by IBCS®
+    //=================================================================================================
+    // License: MIT License (free and permissive)
+    // https://en.wikipedia.org/wiki/MIT_License
+    //=================================================================================================
+    //=================================================================================================
+    // PowerofBI.IBCS.ColumnChart.WithWaterfall function:
+    //   This UDF composes a three-tier IBCS visual: monthly columns, an absolute-variance waterfall, and relative-variance pins.
+    //
+    //   Features include:
+    //     • X-axis line with month letter labels (J, F, M, etc.)
+    //     • Monthly columns: AC (solid black) or FC (hatched) with PY (grey) reference bars
+    //     • Value labels above each monthly column
+    //     • Waterfall bars for monthly ΔPY: green (positive) or red (negative), hatched for FC
+    //     • Cumulative connector lines between waterfall bars
+    //     • PY horizontal reference line spanning all months
+    //     • Year-total variance marker with value label
+    //     • Relative variance axis (grey baseline) with ΔPY% label
+    //     • Monthly variance pins with black/hatched pin heads
+    //     • Total relative variance pin for year-end comparison
+    //=================================================================================================
+    // ==========================================
+    // SECTION: PARAM BINDINGS (no external refs)
+    // ==========================================
+    VAR _Type                 = pType  -- Column type (AC or FC)
+    VAR _Month                = pMonth  -- Month number (1-12) for labeling
+    VAR _ValuePY              = pValuePY  -- Previous year monthly value
+    VAR _ValueACFC            = pValueACFC  -- Current period value (Actual or Forecast)
+    VAR _DeltaPYCumulative    = pDeltaPYCumulative  -- Cumulative delta vs PY to prior month
+    VAR _PY_Value             = pPY_Total  -- Year-to-date Previous Year total
+    VAR _AC_Value             = pAC_Total  -- Year-to-date Actual total
+    VAR _FC_Value             = pFC_Total  -- Year-to-date Forecast total
+    VAR _MaxValue             = pMaxValue  -- Maximum value for SVG scaling
+    VAR _SVG_Height           = IF ( pImageHeight = 0, 620, pImageHeight )  -- SVG canvas height (default 620px)
+
+    // Derived values
+    VAR _DeltaPY   = _ValueACFC - _ValuePY  -- Monthly variance vs PY
+    VAR DeltaPYPct = ROUND ( DIVIDE ( _ValueACFC - _ValuePY, _ValuePY ) * 100, 0 )  -- Monthly variance percentage
+
+    // ==========================================
+    // PARAMETERS (layout, colors, sizing)
+    // ==========================================
+    VAR _SVG_Scale  = _MaxValue / ( _SVG_Height * 33 )  // Pixels per unit for scaling
+    VAR _SVG_Bottom_Pad = 25  // Bottom padding for labels
+    VAR _SVG_Top_Pad    = 95  // Top padding for title and labels
+    VAR _OutlineStrokeWith   = 1  // Bar outline stroke width
+    VAR _ReferenceLineWidth  = 0.2  // Thin line for reference lines
+    VAR _FontSizePt          = 16         // Font size in points
+    VAR _Em                  = _FontSizePt * 4 / 3     // Convert pt to px (=pt*4/3)
+    VAR _CategoryWidth       = _Em * 3  // Width of monthly category column
+    VAR _ColumnWidth         = _CategoryWidth * 2 / 3  // Width of individual bar
+    VAR _CategoryWidthYear   = _Em * 4  // Width of year-total category
+    VAR _ColumnWidthYear     = _CategoryWidthYear * 2 / 3  // Width of year-total bar
+    VAR _SVG_Width           = _CategoryWidthYear  // SVG canvas width
+    VAR _ColumnsLeftOffset   = ( _SVG_Width - _ColumnWidth ) / 2  // Horizontal centering offset
+    VAR _TotalCategoryPosition = _ColumnsLeftOffset + _CategoryWidthYear + 12 * _CategoryWidth  // Position of year-total column
+    VAR _PinWidth            = _Em * 0.3  // Variance pin stem width
+    VAR _PinHeadWidth        = _Em * 0.7  // Variance pin head width
+    VAR _RelativeAxisLineWidth = _Em * 0.3  // Relative variance axis line width
+    VAR _BaseColumnShift     = - _Em * 0.3  // Horizontal offset for baseline alignment
+
+    VAR _Color_DarkGrey = "#333333"  // Dark grey for actuals
+    VAR _Color_LightGrey = "#a6a6a6"  // Light grey for secondary elements
+    VAR _Color_Red   = "#E24B20"  // Red for negative variance
+    VAR _Color_Green = "#08787D"  // Green for positive variance
+
+    // ==========================================
+    // SVG DECLARATION
+    // ==========================================
+    VAR _DEBUG = 0
+        // When = 1, draws a debug rectangle showing the SVG boundaries (useful during layout tuning)
+
+    VAR _SVG_DataType = "data:image/svg+xml;utf8,"  // MIME type prefix for inline SVG data URI
+    VAR _SVG_OpenTag  = "<svg xmlns='http://www.w3.org/2000/svg' x='0px' y='0px' width='" & _SVG_Width & "' height='" & _SVG_Height & "'>"  // SVG root element with dimensions
+    VAR _SVG_Close_Tag = "</svg>"  // SVG closing tag
+    VAR _SVG_DebugBox =
+        IF (
+            _DEBUG,
+            "<rect id='rect-debug-box' x='0%' y='0%' width='100%' height='100%' fill='#FFFFAA' stroke-width='1' stroke='#FF0000' />",
+            ""
+        )
+        // Debug overlay to visualize available drawing area
+
+    VAR _SVG_Style =
+        "<style>
+        <![CDATA[
+          text{
+            font-family: Segoe UI;
+            font-size: " & ROUND ( _Em, 1 ) & "px;
+            dominant-baseline: middle;
+            text-anchor: middle;
+          }
+        ]]>
+      </style>"  // Global SVG text styling
+
+    // ==========================================
+    // STYLE AND PATTERNS
+    // ==========================================
+    VAR SVG_HatchedPattern_Template = "
+    /*hatched pattern*/
+        <defs >
+        <pattern id='<name>' patternUnits='userSpaceOnUse' width='8' height='8'>
+            /*white background*/<rect x='0' y='0' width='8' height='8' fill='#FFFFFF' stroke-width='0'/>
+            <path d='
+                M-2,2 l4,-4
+                M0,8 l8,-8
+                M6,10 l4,-4'
+            style='stroke:<color>; stroke-width:2' />
+        </pattern>
+        </defs>"
+
+    VAR SVG_HatchedPattern =
+        SUBSTITUTE ( SUBSTITUTE ( SVG_HatchedPattern_Template, "<name>", "diagonal-stripe" ), "<color>", _Color_DarkGrey )
+
+    VAR SVG_HatchedPatternRed =
+        SUBSTITUTE ( SUBSTITUTE ( SVG_HatchedPattern_Template, "<name>", "diagonal-stripe-red" ), "<color>", _Color_Red )
+
+    VAR SVG_HatchedPatternGreen =
+        SUBSTITUTE ( SUBSTITUTE ( SVG_HatchedPattern_Template, "<name>", "diagonal-stripe-green" ), "<color>", _Color_Green )
+
+    VAR _SVG_STYLE_AND_PATTERNS =
+        _SVG_Style & SVG_HatchedPattern & SVG_HatchedPatternRed & SVG_HatchedPatternGreen
+
+    // ==========================================
+    // AXIS X
+    // ==========================================
+    VAR _AxisX =
+        "<line x1='" & 0 & "' x2='" & _SVG_Width & "' y1='" & _SVG_Height - _SVG_Bottom_Pad & "' y2='" & _SVG_Height - _SVG_Bottom_Pad & "' stroke='#000000' stroke-width='1'></line>"
+
+    VAR _AxisX_Labels =
+        VAR _Value = LEFT ( FORMAT ( DATE ( 2023, _Month, 1 ), "mmm" ), 1 )
+        RETURN
+            "<text x='" & _ColumnsLeftOffset + _ColumnWidth / 2 & "' y='" & _SVG_Height - _SVG_Bottom_Pad + 20 & "' stroke='#000000' stroke-width='0'>" & _Value & "</text>"
+
+    VAR _SVG_AxisX = _AxisX & _AxisX_Labels
+
+    // ==========================================
+    // COLUMN CHART: MONTHS
+    // ==========================================
+    VAR _PY_Columns =
+        VAR _Height = _ValuePY * _SVG_Scale
+        RETURN
+            "<rect x='" & _ColumnsLeftOffset + _BaseColumnShift & "' y='" & _SVG_Height - _SVG_Bottom_Pad - _Height & "' height='" & _Height & "' width='" & _ColumnWidth & "' fill='" & _Color_LightGrey & "' stroke-width='0'></rect>"
+
+    VAR _ACFC_Columns =
+        VAR _Height = _ValueACFC * _SVG_Scale
+        VAR _Fill =
+            SWITCH ( _Type, "AC", _Color_DarkGrey, "FC", "url(#diagonal-stripe)" )
+        RETURN
+            "<rect x='" & _ColumnsLeftOffset & "' y='" & _SVG_Height - _SVG_Bottom_Pad - _Height & "' height='" & _Height & "' width='" & _ColumnWidth & "' fill='" & _Fill & "' stroke='#000000' stroke-width='" & _OutlineStrokeWith & "'></rect>"
+
+    VAR _ACFC_Labels =
+        VAR _Height = _ValueACFC * _SVG_Scale
+        RETURN
+            "<text x='" & _ColumnsLeftOffset + _ColumnWidth / 2 & "' y='" & _SVG_Height - _SVG_Bottom_Pad - _Height - 15 & "'>" & _ValueACFC & "</text>"
+
+    VAR _SVG_ColumnChart_Month =
+        _PY_Columns & _ACFC_Columns & _ACFC_Labels
+
+    // ==========================================
+    // WATERFALL (absolute variance)
+    // ==========================================
+    VAR ACFCminusPY_Columns =
+        VAR _Cumulative = ( _PY_Value + _DeltaPYCumulative ) * _SVG_Scale
+        VAR _Height = ABS ( _DeltaPY * _SVG_Scale )
+        VAR _Fill =
+            SWITCH (
+                TRUE (),
+                _Type = "AC" && _DeltaPY > 0, _Color_Green,
+                _Type = "AC" && _DeltaPY < 0, _Color_Red,
+                _Type = "FC" && _DeltaPY > 0, "url(#diagonal-stripe-green)",
+                _Type = "FC" && _DeltaPY < 0, "url(#diagonal-stripe-red)"
+            )
+        VAR _Stroke = SWITCH ( TRUE (), _DeltaPY > 0, _Color_Green, _DeltaPY < 0, _Color_Red )
+        RETURN
+            "<rect x='" & _ColumnsLeftOffset & "' y='" &
+                _SVG_Height - _SVG_Bottom_Pad - _Cumulative + IF ( _DeltaPY > 0, - _DeltaPY * _SVG_Scale, 0 ) &
+                "' height='" & _Height & "' width='" & _ColumnWidth & "' fill='" & _Fill &
+                "' stroke='" & _Stroke & "' stroke-width='" & _OutlineStrokeWith & "'></rect>"
+
+    VAR ACFCminusPY_Labels =
+        VAR _Cumulative = ( _PY_Value + _DeltaPYCumulative ) * _SVG_Scale
+        RETURN
+            "<text x='" & _ColumnsLeftOffset + _ColumnWidth / 2 & "' y='" &
+                _SVG_Height - _SVG_Bottom_Pad - _Cumulative + IF ( _DeltaPY > 0, - _DeltaPY * _SVG_Scale - 15, - _DeltaPY * _SVG_Scale + 15 ) &
+                "'>" & FORMAT ( _DeltaPY, "+0;-0;0" ) & "</text>"
+
+    VAR ACFCminusPY_Lines =
+        VAR _Cumulative = ( _PY_Value + _DeltaPYCumulative ) * _SVG_Scale
+        RETURN
+            "<line x1='" & _ColumnsLeftOffset + _ColumnWidth & "' x2='" & _ColumnsLeftOffset + _CategoryWidth + _ColumnsLeftOffset & "' y1='" &
+                _SVG_Height - _SVG_Bottom_Pad - _Cumulative + IF ( _DeltaPY < 0, - _DeltaPY * _SVG_Scale, - _DeltaPY * _SVG_Scale ) &
+                "'  y2='" &
+                _SVG_Height - _SVG_Bottom_Pad - _Cumulative + IF ( _DeltaPY < 0, - _DeltaPY * _SVG_Scale, - _DeltaPY * _SVG_Scale ) &
+                "' stroke='#000000' stroke-width='" & _ReferenceLineWidth & "'></line>"
+
+    VAR _LinePY =
+        "<line x1='86' x2='" & _TotalCategoryPosition + _CategoryWidthYear & "' y1='" &
+        _SVG_Height - _SVG_Bottom_Pad - _PY_Value * _SVG_Scale & "' y2='" &
+        _SVG_Height - _SVG_Bottom_Pad - _PY_Value * _SVG_Scale & "' stroke='#000000' stroke-width='" & _ReferenceLineWidth & "'></line>"
+
+    VAR _LineACFC =
+        "<line x1='" & _ColumnsLeftOffset + 13 * _CategoryWidth & "' x2='" & _TotalCategoryPosition + _CategoryWidthYear & "' y1='" &
+        _SVG_Height - _SVG_Bottom_Pad - ( _AC_Value + _FC_Value ) * _SVG_Scale & "' y2='" &
+        _SVG_Height - _SVG_Bottom_Pad - ( _AC_Value + _FC_Value ) * _SVG_Scale & "' stroke='#000000' stroke-width='" & _ReferenceLineWidth & "'></line>"
+
+    VAR _TotalVariance =
+        VAR _Fill = "red"
+        VAR _Height = ABS ( _FC_Value + _AC_Value - _PY_Value ) * _SVG_Scale
+        RETURN
+            "<rect x='" & _TotalCategoryPosition + _CategoryWidthYear & "' y='" &
+            _SVG_Height - _SVG_Bottom_Pad - _PY_Value * _SVG_Scale & "' height='" &
+            _Height & "' width='" & _PinWidth & "' fill='" & _Fill & "' stroke-width='0'></rect>"
+
+    VAR ACFC_Total_Label =
+        VAR _Value = _AC_Value + _FC_Value - _PY_Value
+        VAR _Height = ( _AC_Value + _FC_Value - _Value / 2 ) * _SVG_Scale
+        RETURN
+            "<text x='" & _TotalCategoryPosition + _CategoryWidthYear + _Em * 1.5 & "' y='" &
+            _SVG_Height - _SVG_Bottom_Pad - _Height & "' stroke='#000000' stroke-width='0'>" & _Value & "</text>"
+
+    VAR _SVG_WATERFALL =
+        ACFCminusPY_Columns & ACFCminusPY_Labels & ACFCminusPY_Lines & _LinePY & _LineACFC & _TotalVariance & ACFC_Total_Label
+
+    // ==========================================
+    // RELATIVE VARIANCE (monthly)
+    // ==========================================
+    VAR _AxisRelative =
+        "<line x1='0' x2='" & _SVG_Width & "' y1='" & _SVG_Top_Pad & "' y2='" & _SVG_Top_Pad & "' stroke='" & _Color_LightGrey & "' stroke-width='" & _RelativeAxisLineWidth & "'></line>"
+
+    VAR _Label_DeltaPYPct =
+        "<text x='" & _TotalCategoryPosition + _CategoryWidthYear + _Em & "' y='" & _SVG_Top_Pad & "' stroke='#000000' stroke-width='0'>ΔPY%</text>"
+
+    VAR ACFCminusPY_Relative =
+        VAR _Height = ABS ( DeltaPYPct )
+        VAR _Fill = SWITCH ( TRUE (), DeltaPYPct > 0, _Color_Green, DeltaPYPct < 0, _Color_Red )
+        RETURN
+            "<rect x='" & _ColumnsLeftOffset + 15 & "' y='" &
+                _SVG_Top_Pad + IF ( DeltaPYPct > 0, - DeltaPYPct, 0 ) &
+                "' height='" & _Height & "' width='" & _PinWidth & "' fill='" & _Fill & "' stroke='#000000' stroke-width='0'></rect>"
+
+    VAR ACFCminusPY_RelativeBlackBox =
+        VAR _Fill = SWITCH ( _Type, "AC", _Color_DarkGrey, "FC", "url(#diagonal-stripe)" )
+        RETURN
+            "<rect x='" & _ColumnsLeftOffset + 17.5 - _PinHeadWidth / 2 & "' y='" &
+            _SVG_Top_Pad - DeltaPYPct - _PinHeadWidth / 2 & "' height='" & _PinHeadWidth &
+            "' width='" & _PinHeadWidth & "' fill='" & _Fill & "' stroke='" & _Color_DarkGrey & "' stroke-width='" & _OutlineStrokeWith & "'></rect>"
+
+    VAR RelativeVariation_Labels =
+        "<text x='" & _ColumnsLeftOffset + _ColumnWidth / 2 & "' y='" &
+            _SVG_Top_Pad + IF ( DeltaPYPct > 0, - DeltaPYPct - 20, - DeltaPYPct + 22 ) &
+            "'>" & FORMAT ( DeltaPYPct, "+0;-0;0" ) & "</text>"
+
+    VAR _SVG_RELATIVE_VARIANCE =
+        _AxisRelative & _Label_DeltaPYPct & ACFCminusPY_RelativeBlackBox & ACFCminusPY_Relative & RelativeVariation_Labels
+
+    // ==========================================
+    // RELATIVE VARIANCE (year total)
+    // ==========================================
+    VAR _AxisRelativeTotal =
+        "<line x1='" & _TotalCategoryPosition & "' x2='" & _TotalCategoryPosition + _CategoryWidth & "' y1='" & _SVG_Top_Pad & "' y2='" & _SVG_Top_Pad & "' stroke='" & _Color_LightGrey & "' stroke-width='" & _RelativeAxisLineWidth & "'></line>"
+
+    VAR ACFCminusPY_RelativeTotal =
+        VAR _Height = ABS ( DeltaPYPct )
+        VAR _Fill = SWITCH ( TRUE (), DeltaPYPct > 0, _Color_Green, DeltaPYPct < 0, _Color_Red )
+        RETURN
+            "<rect x='" & _TotalCategoryPosition + _ColumnWidthYear / 2 & "' y='" &
+                _SVG_Top_Pad + IF ( DeltaPYPct > 0, - DeltaPYPct, 0 ) &
+                "' height='" & _Height & "' width='" & _PinWidth & "' fill='" & _Fill & "' stroke='#000000' stroke-width='0'></rect>"
+
+    VAR ACFCminusPY_RelativeBlackBoxTotal =
+        VAR _TypeTotal = "FC"    -- pin head style
+        VAR _Fill = SWITCH ( _TypeTotal, "AC", _Color_DarkGrey, "FC", "url(#diagonal-stripe)" )
+        RETURN
+            "<rect x='" & _TotalCategoryPosition + _ColumnWidthYear / 2 - _PinHeadWidth / 2 + 3 & "' y='" &
+            _SVG_Top_Pad - DeltaPYPct - _PinHeadWidth / 2 & "' height='" & _PinHeadWidth &
+            "' width='" & _PinHeadWidth & "' fill='" & _Fill & "' stroke='" & _Color_DarkGrey & "' stroke-width='" & _OutlineStrokeWith & "'></rect>"
+
+    VAR RelativeVariation_LabelsTotal =
+        "<text x='" & _TotalCategoryPosition + _ColumnWidthYear / 2 & "' y='" &
+            _SVG_Top_Pad + IF ( DeltaPYPct > 0, - DeltaPYPct - 20, - DeltaPYPct + 20 ) &
+            "' stroke='#000000' stroke-width='0'>" & FORMAT ( DeltaPYPct, "+0;-0;0" ) & "</text>"
+
+    VAR _SVG_RELATIVEVARIANCE_TOTAL =
+        _AxisRelativeTotal & ACFCminusPY_RelativeBlackBoxTotal & ACFCminusPY_RelativeTotal & RelativeVariation_LabelsTotal
+
+    // ==========================================
+    // COMBINE SVG
+    // ==========================================
+    VAR SVGImageURL =
+        _SVG_DataType &
+        _SVG_OpenTag &
+        _SVG_DebugBox &
+        _SVG_STYLE_AND_PATTERNS &
+        _SVG_AxisX &
+        _SVG_ColumnChart_Month &
+        _SVG_WATERFALL &
+        _SVG_RELATIVE_VARIANCE &
+        _SVG_RELATIVEVARIANCE_TOTAL &
+        _SVG_Close_Tag
+
+    RETURN
+        SVGImageURL
